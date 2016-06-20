@@ -29,7 +29,6 @@ Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? utf16("") : utf16(x.
 Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? utf32("") : utf32(x.ptr, x.len)
 Base.convert(::Type{WeakRefString{UInt16}}, x::UTF16String) = WeakRefString(pointer(x.data), length(x))
 Base.convert(::Type{WeakRefString{UInt32}}, x::UTF32String) = WeakRefString(pointer(x.data), length(x))
-Base.String(x::WeakRefString) = string(x)
 
 if !isdefined(Core, :String)
     Base.convert(::Type{ASCIIString}, x::WeakRefString) = convert(ASCIIString, string(x))
@@ -43,6 +42,7 @@ else
     Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 	Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
 	Base.show(io::IO, x::WeakRefString) = print(io, x == NULLSTRING ? "\"\"" : "\"$(unsafe_wrap(String, x.ptr, x.len))\"")
+    Base.String(x::WeakRefString) = string(x)
 end
 
 
