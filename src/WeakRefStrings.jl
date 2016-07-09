@@ -22,6 +22,17 @@ Base.endof(x::WeakRefString) = x.len
 Base.length(x::WeakRefString) = x.len
 Base.next(x::WeakRefString, i::Int) = (Char(unsafe_load(x.ptr, i)),i+1)
 
+import Base: ==
+function ==(x::WeakRefString{UInt8}, y::WeakRefString{UInt8})
+    x.len==y.len && (x.ptr==y.ptr || ccall(:memcmp, Cint, (Ptr{UInt8}, Ptr{UInt8}, Csize_t),
+                                           x.ptr, y.ptr, x.len)==0)
+end
+
+function Base.hash(s::WeakRefString{UInt8}, h::UInt)
+    h += Base.memhash_seed
+    ccall(Base.memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), s.ptr, s.len, h % UInt32) + h
+end
+
 Base.show{T}(io::IO, ::Type{WeakRefString{T}}) = print(io, "WeakRefString{$T}")
 Base.show(io::IO, x::WeakRefString{UInt16}) = print(io, x == NULLSTRING16 ? "\"\"" : "\"$(utf16(x.ptr, x.len))\"")
 Base.show(io::IO, x::WeakRefString{UInt32}) = print(io, x == NULLSTRING32 ? "\"\"" : "\"$(utf32(x.ptr, x.len))\"")
