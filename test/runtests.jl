@@ -1,4 +1,4 @@
-using WeakRefStrings
+using WeakRefStrings, LegacyStrings
 using Base.Test
 
 data = "hey there sailor".data
