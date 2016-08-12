@@ -40,11 +40,11 @@ end
 
 Base.show{T}(io::IO, ::Type{WeakRefString{T}}) = print(io, "WeakRefString{$T}")
 function Base.show{T}(io::IO, x::WeakRefString{T})
-    print('"')
+    print(io, '"')
     for c in x
-        print(c)
+        print(io, c)
     end
-    print('"')
+    print(io, '"')
     return
 end
 Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? utf16("") : utf16(x.ptr, x.len)
