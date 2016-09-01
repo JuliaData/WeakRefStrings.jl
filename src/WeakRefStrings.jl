@@ -7,6 +7,10 @@ else
     transcode = Base.transcode
 end
 
+if !isdefined(Base, :unsafe_wrap)
+    unsafe_wrap{A<:Array}(::Type{A}, ptr, len, own) = pointer_to_array(ptr, len, own)
+end
+
 export WeakRefString
 
 """
