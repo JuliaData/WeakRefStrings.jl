@@ -8,7 +8,7 @@ else
 end
 
 if !isdefined(Base, :unsafe_wrap)
-    unsafe_wrap{A<:Array}(::Type{A}, ptr, len) = pointer_to_array(ptr, len, own)
+    unsafe_wrap{A<:Array}(::Type{A}, ptr, len) = pointer_to_array(ptr, len, false)
 end
 
 export WeakRefString
@@ -73,7 +73,8 @@ Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? "" : String(transcod
 
 if !isdefined(Core, :String)
     using LegacyStrings
-
+    typealias String UTF8String
+    
     Base.convert(::Type{WeakRefString{UInt16}}, x::UTF16String) = WeakRefString(pointer(x.data), length(x))
     Base.convert(::Type{WeakRefString{UInt32}}, x::UTF32String) = WeakRefString(pointer(x.data), length(x))
 
