@@ -2,7 +2,7 @@ __precompile__(true)
 module WeakRefStrings
 
 if !isdefined(Base, :transcode)
-    transcode(T, bytes) = Base.encode_to_utf8(T, bytes, length(bytes))
+    transcode(T, bytes) = Base.encode_to_utf8(eltype(bytes), bytes, length(bytes)).data
 else
     transcode = Base.transcode
 end
@@ -74,7 +74,7 @@ Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? "" : String(transcod
 if !isdefined(Core, :String)
     using LegacyStrings
     typealias String UTF8String
-    
+
     Base.convert(::Type{WeakRefString{UInt16}}, x::UTF16String) = WeakRefString(pointer(x.data), length(x))
     Base.convert(::Type{WeakRefString{UInt32}}, x::UTF32String) = WeakRefString(pointer(x.data), length(x))
 
