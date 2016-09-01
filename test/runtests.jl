@@ -2,7 +2,7 @@ using WeakRefStrings
 using Base.Test
 
 if !isdefined(Core, :String)
-    String = UTF8String
+    typealias String UTF8String
 end
 
 data = "hey there sailor".data
