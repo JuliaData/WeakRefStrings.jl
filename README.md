@@ -18,7 +18,7 @@ julia> Pkg.add("WeakRefStrings")
 
 ## Project Status
 
-The package is tested against Julia `0.4` and *current* `0.5-dev` on Linux, OS X, and Windows.
+The package is tested against Julia `0.4` and *current* `0.5` on Linux, OS X, and Windows.
 
 ## Contributing and Questions
 
@@ -42,13 +42,23 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 [pkg-0.5-url]: http://pkg.julialang.org/?pkg=WeakRefStrings
 
 ## Usage
-A custom "weakref" string type that only stores a Ptr{UInt8} and len::Int.
-Allows for extremely efficient string parsing/movement in certain data processing tasks.
+A custom "weakref" string type that only points to external string data.
+Allows for the creation of a "string" instance without copying data,
+which allows for more efficient string parsing/movement in certain data processing tasks.
 
 **Please note that no original reference is kept to the parent string/memory, so `WeakRefString` becomes unsafe
 once the parent object goes out of scope (i.e. loses a reference to it)**
 
-`WeakRefString` must be created from existing data, and references to the underlying data must be managed separately.
+Internally, a `WeakRefString{T}` holds:
+
+  * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
+  * `len::Int`: the number of code units in the string data
+  * `ind::Int`: a field that can be used to store an integer, like an index into an array; this can be helpful
+                in certain cases when the underlying source may need to move around (which would invalidate
+                the WeakRefString's `ptr` field), a new WeakRefString can created using the same offset into
+                the parent data as the old one.
+
+
 ```julia
 data = "hey there sailor".data
 

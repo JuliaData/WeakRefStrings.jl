@@ -1,21 +1,29 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
+__precompile__(true)
 module WeakRefStrings
-
-using LegacyStrings
 
 export WeakRefString
 
 """
-A custom "weakref" string type that only stores a Ptr{UInt8} and len::Int.
-Allows for extremely efficient string parsing/movement in certain data processing tasks.
+A custom "weakref" string type that only points to external string data.
+Allows for the creation of a "string" instance without copying data,
+which allows for more efficient string parsing/movement in certain data processing tasks.
 
 **Please note that no original reference is kept to the parent string/memory, so `WeakRefString` becomes unsafe
 once the parent object goes out of scope (i.e. loses a reference to it)**
+
+Internally, a `WeakRefString{T}` holds:
+
+  * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
+  * `len::Int`: the number of code units in the string data
+  * `ind::Int`: a field that can be used to store an integer, like an index into an array; this can be helpful
+                in certain cases when the underlying source may need to move around (which would invalidate
+                the WeakRefString's `ptr` field), a new WeakRefString can created using the same offset into
+                the parent data as the old one.
 """
 immutable WeakRefString{T} <: AbstractString
     ptr::Ptr{T}
-    len::Int # of **code units**
-    ind::Int
+    len::Int # of code units
+    ind::Int # used to keep track of a string data index
 end
 
 WeakRefString{T}(ptr::Ptr{T}, len) = WeakRefString(ptr, Int(len), 0)
@@ -47,12 +55,18 @@ function Base.show{T}(io::IO, x::WeakRefString{T})
     print(io, '"')
     return
 end
-Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? utf16("") : utf16(x.ptr, x.len)
-Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? utf32("") : utf32(x.ptr, x.len)
-Base.convert(::Type{WeakRefString{UInt16}}, x::UTF16String) = WeakRefString(pointer(x.data), length(x))
-Base.convert(::Type{WeakRefString{UInt32}}, x::UTF32String) = WeakRefString(pointer(x.data), length(x))
+
+chompnull{T}(x::WeakRefString{T}) = unsafe_load(x.ptr, x.len) == T(0) ? x.len - 1 : x.len
+
+Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
+Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 
 if !isdefined(Core, :String)
+    using LegacyStrings
+
+    Base.convert(::Type{WeakRefString{UInt16}}, x::UTF16String) = WeakRefString(pointer(x.data), length(x))
+    Base.convert(::Type{WeakRefString{UInt32}}, x::UTF32String) = WeakRefString(pointer(x.data), length(x))
+
     Base.convert(::Type{ASCIIString}, x::WeakRefString) = convert(ASCIIString, string(x))
     Base.convert(::Type{UTF8String}, x::WeakRefString) = convert(UTF8String, string(x))
     Base.string(x::WeakRefString) = x == NULLSTRING ? utf8("") : utf8(x.ptr, x.len)
