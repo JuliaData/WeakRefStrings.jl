@@ -1,16 +1,6 @@
 __precompile__(true)
 module WeakRefStrings
 
-if !isdefined(Base, :transcode)
-    transcode(T, bytes) = Base.encode_to_utf8(eltype(bytes), bytes, length(bytes)).data
-else
-    transcode = Base.transcode
-end
-
-if !isdefined(Base, :unsafe_wrap)
-    unsafe_wrap{A<:Array}(::Type{A}, ptr, len) = pointer_to_array(ptr, len, false)
-end
-
 export WeakRefString
 
 """
@@ -71,23 +61,9 @@ chompnull{T}(x::WeakRefString{T}) = unsafe_load(x.ptr, x.len) == T(0) ? x.len - 
 Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 
-if !isdefined(Core, :String)
-    using LegacyStrings
-    typealias String UTF8String
-
-    Base.convert(::Type{WeakRefString{UInt16}}, x::UTF16String) = WeakRefString(pointer(x.data), length(x))
-    Base.convert(::Type{WeakRefString{UInt32}}, x::UTF32String) = WeakRefString(pointer(x.data), length(x))
-
-    Base.convert(::Type{ASCIIString}, x::WeakRefString) = convert(ASCIIString, string(x))
-    Base.convert(::Type{UTF8String}, x::WeakRefString) = convert(UTF8String, string(x))
-    Base.string(x::WeakRefString) = x == NULLSTRING ? utf8("") : utf8(x.ptr, x.len)
-    Base.convert(::Type{WeakRefString{UInt8}}, x::UTF8String) = WeakRefString(pointer(x.data), length(x))
-    Base.convert(::Type{WeakRefString{UInt8}}, x::ASCIIString) = WeakRefString(pointer(x.data), length(x))
-else
-    Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x.data), length(x))
-    Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
-	Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
-    Base.String(x::WeakRefString) = string(x)
-end
+Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x.data), length(x))
+Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
+Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
+Base.String(x::WeakRefString) = string(x)
 
 end # module
