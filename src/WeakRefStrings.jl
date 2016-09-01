@@ -1,6 +1,12 @@
 __precompile__(true)
 module WeakRefStrings
 
+if !isdefined(Base, :transcode)
+    transcode(T, bytes) = Base.encode_to_utf8(T, bytes, length(bytes))
+else
+    transcode = Base.transcode
+end
+
 export WeakRefString
 
 """

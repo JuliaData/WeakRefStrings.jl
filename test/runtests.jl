@@ -1,6 +1,10 @@
 using WeakRefStrings
 using Base.Test
 
+if !isdefined(Core, :String)
+    String = UTF8String
+end
+
 data = "hey there sailor".data
 
 str = WeakRefString(pointer(data), 3)
