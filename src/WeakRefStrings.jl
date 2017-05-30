@@ -1,7 +1,9 @@
 __precompile__(true)
 module WeakRefStrings
 
-export WeakRefString
+export WeakRefString, WeakRefStringArray
+
+using Nulls
 
 """
 A custom "weakref" string type that only points to external string data.
@@ -27,10 +29,12 @@ immutable WeakRefString{T} <: AbstractString
 end
 
 WeakRefString{T}(ptr::Ptr{T}, len) = WeakRefString(ptr, Int(len), 0)
+WeakRefString{T}(t::Tuple{Ptr{T}, Int, Int}) = WeakRefString(t[1], t[2], t[3])
 
 const NULLSTRING = WeakRefString(Ptr{UInt8}(0), 0)
 const NULLSTRING16 = WeakRefString(Ptr{UInt16}(0), 0)
 const NULLSTRING32 = WeakRefString(Ptr{UInt32}(0), 0)
+Base.zero{T}(::Type{WeakRefString{T}}) = WeakRefString(Ptr{T}(0), 0, 0)
 Base.endof(x::WeakRefString) = x.len
 Base.length(x::WeakRefString) = x.len
 Base.next(x::WeakRefString, i::Int) = (Char(unsafe_load(x.ptr, i)), i + 1)
@@ -65,5 +69,18 @@ Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x.
 Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
 Base.String(x::WeakRefString) = string(x)
+
+immutable WeakRefStringArray{T <: WeakRefString, N} <: AbstractArray{Union{T, Null}, N}
+    data::Vector{UInt8}
+    elements::Array{T, N}
+end
+
+WeakRefStringArray{T}(data::Vector{UInt8}, ::Type{T}, rows::Integer) = WeakRefStringArray(data, zeros(Nulls.T(T), rows))
+
+Base.size(A::WeakRefStringArray) = size(A.elements)
+Base.getindex(A::WeakRefStringArray, i::Int) = A.elements[i]
+Base.getindex{T, N}(A::WeakRefStringArray{T, N}, I::Vararg{Int, N}) = A.elements[I...]
+Base.setindex!{T, N}(A::WeakRefStringArray{T, N}, v, i::Int) = setindex!(A.elements, v, i)
+Base.setindex!{T, N}(A::WeakRefStringArray{T, N}, v, I::Vararg{Int, N}) = setindex!(A.elements, v, I...)
 
 end # module
