@@ -76,6 +76,7 @@ struct WeakRefStringArray{T <: ?WeakRefString, N} <: AbstractArray{T, N}
 end
 
 WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: ?WeakRefString} = WeakRefStringArray([data], Vector{T}(zeros(Nulls.T(T), rows)))
+WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: ?WeakRefString} = WeakRefStringArray([data], A)
 
 Base.size(A::WeakRefStringArray) = size(A.elements)
 Base.getindex(A::WeakRefStringArray, i::Int) = A.elements[i]
@@ -84,8 +85,8 @@ Base.setindex!(A::WeakRefStringArray{T, N}, v, i::Int) where {T, N} = setindex!(
 Base.setindex!(A::WeakRefStringArray{T, N}, v, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
-function Base.append!(a::WeakRefStringArray{T, N}, b::WeakRefStringArray{T, N}) where {T, N}
-    push!(a.data, b.data)
+function Base.append!(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) where {T}
+    append!(a.data, b.data)
     append!(a.elements, b.elements)
     return a
 end
