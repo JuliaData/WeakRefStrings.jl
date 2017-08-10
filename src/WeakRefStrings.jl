@@ -28,7 +28,7 @@ struct WeakRefString{T} <: AbstractString
     ind::Int # used to keep track of a string data index
 end
 
-WeakRefString(ptr::Ptr{T}, len) where {T} = WeakRefString(ptr, Int(len), 0)
+WeakRefString(ptr::Ptr{T}, len) where {T} = WeakRefString(ptr, Int(len), 1)
 WeakRefString(t::Tuple{Ptr{T}, Int, Int}) where {T} = WeakRefString(t[1], t[2], t[3])
 
 const NULLSTRING = WeakRefString(Ptr{UInt8}(0), 0)
