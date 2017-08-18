@@ -25,16 +25,15 @@ Internally, a `WeakRefString{T}` holds:
 struct WeakRefString{T} <: AbstractString
     ptr::Ptr{T}
     len::Int # of code units
-    ind::Int # used to keep track of a string data index
 end
 
-WeakRefString(ptr::Ptr{T}, len) where {T} = WeakRefString(ptr, Int(len), 1)
-WeakRefString(t::Tuple{Ptr{T}, Int, Int}) where {T} = WeakRefString(t[1], t[2], t[3])
+WeakRefString(ptr::Ptr{T}, len) where {T} = WeakRefString(ptr, Int(len))
+WeakRefString(t::Tuple{Ptr{T}, Int}) where {T} = WeakRefString(t[1], t[2])
 
 const NULLSTRING = WeakRefString(Ptr{UInt8}(0), 0)
 const NULLSTRING16 = WeakRefString(Ptr{UInt16}(0), 0)
 const NULLSTRING32 = WeakRefString(Ptr{UInt32}(0), 0)
-Base.zero(::Type{WeakRefString{T}}) where {T} = WeakRefString(Ptr{T}(0), 0, 0)
+Base.zero(::Type{WeakRefString{T}}) where {T} = WeakRefString(Ptr{T}(0), 0)
 Base.endof(x::WeakRefString) = x.len
 Base.length(x::WeakRefString) = x.len
 Base.next(x::WeakRefString, i::Int) = (Char(unsafe_load(x.ptr, i)), i + 1)
@@ -70,19 +69,23 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
 Base.String(x::WeakRefString) = string(x)
 
-struct WeakRefStringArray{T <: ?WeakRefString, N} <: AbstractArray{T, N}
+struct WeakRefStringArray{T <: Union{WeakRefString, Null}, N} <: AbstractArray{T, N}
     data::Vector{Vector{UInt8}}
     elements::Array{T, N}
 end
 
-WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: ?WeakRefString} = WeakRefStringArray([data], Vector{T}(zeros(Nulls.T(T), rows)))
-WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: ?WeakRefString} = WeakRefStringArray([data], A)
+WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: Union{WeakRefString, Null}} = WeakRefStringArray([data], Vector{T}(zeros(Nulls.T(T), rows)))
+WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Null}} = WeakRefStringArray([data], A)
 
 Base.size(A::WeakRefStringArray) = size(A.elements)
 Base.getindex(A::WeakRefStringArray, i::Int) = A.elements[i]
 Base.getindex(A::WeakRefStringArray{T, N}, I::Vararg{Int, N}) where {T, N} = A.elements[I...]
-Base.setindex!(A::WeakRefStringArray{T, N}, v, i::Int) where {T, N} = setindex!(A.elements, v, i)
-Base.setindex!(A::WeakRefStringArray{T, N}, v, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
+Base.setindex!(A::WeakRefStringArray{T, N}, v::Null, i::Int) where {T, N} = setindex!(A.elements, v, i)
+Base.setindex!(A::WeakRefStringArray{T, N}, v::Null, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
+Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
+Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
+Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, i))
+Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, I...))
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
 function Base.append!(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) where {T}

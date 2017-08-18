@@ -5,7 +5,7 @@
 
 | **PackageEvaluator**                                            | **Build Status**                                                                                |
 |:---------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
-| [![][pkg-0.4-img]][pkg-0.4-url] [![][pkg-0.5-img]][pkg-0.5-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
+| [![][pkg-0.6-img]][pkg-0.6-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
 
 
 ## Installation
@@ -18,7 +18,7 @@ julia> Pkg.add("WeakRefStrings")
 
 ## Project Status
 
-The package is tested against Julia `0.4` and *current* `0.5` on Linux, OS X, and Windows.
+The package is tested against Julia `0.6` and nightly on Linux, OS X, and Windows.
 
 ## Contributing and Questions
 
@@ -36,12 +36,11 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 
 [issues-url]: https://github.com/quinnj/WeakRefStrings.jl/issues
 
-[pkg-0.4-img]: http://pkg.julialang.org/badges/WeakRefStrings_0.4.svg
-[pkg-0.4-url]: http://pkg.julialang.org/?pkg=WeakRefStrings
-[pkg-0.5-img]: http://pkg.julialang.org/badges/WeakRefStrings_0.5.svg
-[pkg-0.5-url]: http://pkg.julialang.org/?pkg=WeakRefStrings
+[pkg-0.6-img]: http://pkg.julialang.org/badges/WeakRefStrings_0.6.svg
+[pkg-0.6-url]: http://pkg.julialang.org/?pkg=WeakRefStrings
 
 ## Usage
+
 A custom "weakref" string type that only points to external string data.
 Allows for the creation of a "string" instance without copying data,
 which allows for more efficient string parsing/movement in certain data processing tasks.
@@ -53,14 +52,10 @@ Internally, a `WeakRefString{T}` holds:
 
   * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
   * `len::Int`: the number of code units in the string data
-  * `ind::Int`: a field that can be used to store an integer, like an index into an array; this can be helpful
-                in certain cases when the underlying source may need to move around (which would invalidate
-                the WeakRefString's `ptr` field), a new WeakRefString can created using the same offset into
-                the parent data as the old one.
 
 
 ```julia
-data = "hey there sailor".data
+data = Vector{UInt8}("hey there sailor")
 
 str = WeakRefString(pointer(data), 3)
 @test length(str) == 3
@@ -69,3 +64,10 @@ for (i,c) in enumerate(str)
 end
 @test string(str) == "hey"
 ```
+
+To facilitate using WeakRefStrings, a `WeakRefStringArray` type is provided that can simultaneously act as an `Array{WeakRefString{T}, N}` while also holding on to data references that the WeakRefStrings point to. Usage, is simple:
+```julia
+WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows) => WeakRefStringArray{T, 1}
+WeakRefStringArray(data::Vector{UInt8}, A::Array{WeakRefString{T}, N}) => WeakRefStringArray{T, N}
+```
+In both cases, the first argument passed is the data that should be held in reference. An "empty" WeakRefString can be constructed by passing the WeakRefString element type and a number of rows, or an already constructed Array of WeakRefStrings can be passed in directly.
