@@ -1,12 +1,5 @@
 using WeakRefStrings, Base.Test
 
-<<<<<<< HEAD
-if !isdefined(Core, :String)
-    const String = UTF8String
-end
-
-=======
->>>>>>> 0.7 updates
 data = Vector{UInt8}("hey there sailor")
 
 str = WeakRefString(pointer(data), 3)
