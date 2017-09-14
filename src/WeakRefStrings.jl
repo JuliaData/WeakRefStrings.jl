@@ -43,6 +43,11 @@ function ==(x::WeakRefString{T}, y::WeakRefString{T}) where {T}
     x.len == y.len && (x.ptr == y.ptr || ccall(:memcmp, Cint, (Ptr{T}, Ptr{T}, Csize_t),
                                            x.ptr, y.ptr, x.len) == 0)
 end
+function ==(x::String, y::WeakRefString{T}) where {T}
+    sizeof(x) == y.len && ccall(:memcmp, Cint, (Ptr{T}, Ptr{T}, Csize_t),
+                                 pointer(x), y.ptr, y.len) == 0
+end
+==(y::WeakRefString, x::String) = x == y
 
 function Base.hash(s::WeakRefString{T}, h::UInt) where {T}
     h += Base.memhash_seed
@@ -68,6 +73,7 @@ Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x)
 Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
 Base.String(x::WeakRefString) = string(x)
+Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
 struct WeakRefStringArray{T <: Union{WeakRefString, Null}, N} <: AbstractArray{T, N}
     data::Vector{Vector{UInt8}}
