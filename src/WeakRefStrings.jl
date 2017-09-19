@@ -57,21 +57,21 @@ end
 Base.show(io::IO, ::Type{WeakRefString{T}}) where {T} = print(io, "WeakRefString{$T}")
 function Base.show(io::IO, x::WeakRefString{T}) where {T}
     print(io, '"')
-    for c in x
-        print(io, c)
-    end
+    print(io, string(x))
     print(io, '"')
     return
 end
+Base.print(io::IO, s::WeakRefString) = print(io, string(s))
+Base.strwidth(s::WeakRefString) = strwidth(string(s))
 
 chompnull(x::WeakRefString{T}) where {T} = unsafe_load(x.ptr, x.len) == T(0) ? x.len - 1 : x.len
 
+Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
 Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 
 Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x), length(x))
 Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
-Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
