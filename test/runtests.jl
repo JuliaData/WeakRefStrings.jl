@@ -61,9 +61,15 @@ end
     @test A[1] == "hey"
     resize!(A, 5)
     @test size(A) == (5,)
+    push!(A, str)
+    @test size(A) == (6,)
+    @test A[end] == str
+    push!(A, "hi")
+    @test length(A) == 7
+    @test A[end] == convert(WeakRefString{UInt8}, "hi")
 
     B = WeakRefStringArray(UInt8[], WeakRefString{UInt8}, 10)
     B[1] = "ho"
     append!(A, B)
-    @test size(A) == (15,)
+    @test size(A) == (17,)
 end
