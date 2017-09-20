@@ -94,6 +94,7 @@ Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (p
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, I...))
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
+Base.push!(a::WeakRefStringArray{T, 1}, v::Null) where {T} = (push!(a.elements, v); a)
 Base.push!(a::WeakRefStringArray{T, 1}, v::WeakRefString) where {T} = (push!(a.elements, v); a)
 function Base.push!(A::WeakRefStringArray{T, 1}, v::String) where T
     push!(A.data, Vector{UInt8}(v))
