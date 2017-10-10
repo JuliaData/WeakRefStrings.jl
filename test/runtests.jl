@@ -40,7 +40,7 @@ end
     str = WeakRefString(pointer(data), 4)
     @test typeof(str) == WeakRefString{UInt32}
     @test String(str) == "hey"
-    @test length(str) == 4
+    @test length(str) == 3
     for (i,c) in enumerate(str)
         @test data[i] == c % UInt8
     end
