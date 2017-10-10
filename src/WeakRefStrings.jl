@@ -17,10 +17,6 @@ Internally, a `WeakRefString{T}` holds:
 
   * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
   * `len::Int`: the number of code units in the string data
-  * `ind::Int`: a field that can be used to store an integer, like an index into an array; this can be helpful
-                in certain cases when the underlying source may need to move around (which would invalidate
-                the WeakRefString's `ptr` field), a new WeakRefString can created using the same offset into
-                the parent data as the old one.
 """
 struct WeakRefString{T} <: AbstractString
     ptr::Ptr{T}
@@ -34,8 +30,8 @@ const NULLSTRING = WeakRefString(Ptr{UInt8}(0), 0)
 const NULLSTRING16 = WeakRefString(Ptr{UInt16}(0), 0)
 const NULLSTRING32 = WeakRefString(Ptr{UInt32}(0), 0)
 Base.zero(::Type{WeakRefString{T}}) where {T} = WeakRefString(Ptr{T}(0), 0)
-Base.endof(x::WeakRefString) = x.len
-Base.length(x::WeakRefString) = x.len
+Base.endof(x::WeakRefString) = endof(string(x))
+Base.length(x::WeakRefString) = length(string(x))
 Base.next(x::WeakRefString, i::Int) = (Char(unsafe_load(x.ptr, i)), i + 1)
 
 import Base: ==
@@ -62,7 +58,11 @@ function Base.show(io::IO, x::WeakRefString{T}) where {T}
     return
 end
 Base.print(io::IO, s::WeakRefString) = print(io, string(s))
-Base.strwidth(s::WeakRefString) = strwidth(string(s))
+if VERSION < v"0.7-DEV"
+    Base.strwidth(s::WeakRefString) = strwidth(string(s))
+else
+    Base.textwidth(s::WeakRefString) = textwidth(string(s))
+end
 
 chompnull(x::WeakRefString{T}) where {T} = unsafe_load(x.ptr, x.len) == T(0) ? x.len - 1 : x.len
 
@@ -70,7 +70,7 @@ Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.le
 Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 
-Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x), length(x))
+Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x), sizeof(x))
 Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
@@ -83,9 +83,12 @@ end
 WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: Union{WeakRefString, Null}} = WeakRefStringArray([data], Vector{T}(zeros(Nulls.T(T), rows)))
 WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Null}} = WeakRefStringArray([data], A)
 
+wk(w::WeakRefString) = string(w)
+wk(::Null) = null
+
 Base.size(A::WeakRefStringArray) = size(A.elements)
-Base.getindex(A::WeakRefStringArray, i::Int) = A.elements[i]
-Base.getindex(A::WeakRefStringArray{T, N}, I::Vararg{Int, N}) where {T, N} = A.elements[I...]
+Base.getindex(A::WeakRefStringArray, i::Int) = wk(A.elements[i])
+Base.getindex(A::WeakRefStringArray{T, N}, I::Vararg{Int, N}) where {T, N} = wk.(A.elements[I...])
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Null, i::Int) where {T, N} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Null, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
