@@ -75,12 +75,13 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
-struct WeakRefStringArray{T <: Union{WeakRefString, Null}, N} <: AbstractArray{T, N}
+struct WeakRefStringArray{T, N} <: AbstractArray{T, N}
     data::Vector{Any}
     elements::Array{T, N}
 end
 
-WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: Union{WeakRefString, Null}} = WeakRefStringArray(Any[data], Vector{T}(zeros(Nulls.T(T), rows)))
+WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: WeakRefString} = WeakRefStringArray(Any[data], zeros(T, rows))
+WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{Null, T}}, rows::Integer) where {T} = WeakRefStringArray(Any[data], Vector{Union{Null, T}}(rows))
 WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Null}} = WeakRefStringArray(Any[data], A)
 
 wk(w::WeakRefString) = string(w)
