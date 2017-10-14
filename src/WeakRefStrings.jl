@@ -112,4 +112,10 @@ function Base.append!(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) 
     return a
 end
 
+import Base.get
+
+function get(s::WeakRefString{T}) where {T}
+    string(s)
+end
+
 end # module
