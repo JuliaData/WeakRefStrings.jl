@@ -112,4 +112,8 @@ function Base.append!(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) 
     return a
 end
 
+function Base.vcat(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) where T
+    WeakRefStringArray(Any[a.data, b.data], vcat(a.elements, b.elements))
+end
+
 end # module
