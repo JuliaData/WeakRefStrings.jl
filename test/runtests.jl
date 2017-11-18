@@ -1,4 +1,4 @@
-using WeakRefStrings, Base.Test, Nulls
+using WeakRefStrings, Base.Test, Missings
 
 @testset "WeakRefString{UInt8}" begin
     data = Vector{UInt8}("hey there sailor")
@@ -73,13 +73,13 @@ end
     append!(A, B)
     @test size(A) == (17,)
 
-    D = WeakRefStringArray(UInt8[], Union{Null, WeakRefString{UInt8}}, 0)
+    D = WeakRefStringArray(UInt8[], Union{Missing, WeakRefString{UInt8}}, 0)
     push!(D, "hey")
     push!(D, str)
-    push!(D, null)
+    push!(D, missing)
     @test length(D) == 3
     @test D[2] == str
-    @test D[3] === null
-    D[2] = null
-    @test D[2] === null
+    @test D[3] === missing
+    D[2] = missing
+    @test D[2] === missing
 end

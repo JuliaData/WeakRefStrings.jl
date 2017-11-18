@@ -3,7 +3,7 @@ module WeakRefStrings
 
 export WeakRefString, WeakRefStringArray
 
-using Nulls
+using Missings
 
 """
 A custom "weakref" string type that only points to external string data.
@@ -81,24 +81,24 @@ struct WeakRefStringArray{T, N} <: AbstractArray{T, N}
 end
 
 WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: WeakRefString} = WeakRefStringArray(Any[data], zeros(T, rows))
-WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{Null, T}}, rows::Integer) where {T} = WeakRefStringArray(Any[data], Vector{Union{Null, T}}(rows))
-WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Null}} = WeakRefStringArray(Any[data], A)
+WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{Missing, T}}, rows::Integer) where {T} = WeakRefStringArray(Any[data], Vector{Union{Missing, T}}(rows))
+WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
 
 wk(w::WeakRefString) = string(w)
-wk(::Null) = null
+wk(::Missing) = missing
 
 Base.size(A::WeakRefStringArray) = size(A.elements)
 Base.getindex(A::WeakRefStringArray, i::Int) = wk(A.elements[i])
 Base.getindex(A::WeakRefStringArray{T, N}, I::Vararg{Int, N}) where {T, N} = wk.(A.elements[I...])
-Base.setindex!(A::WeakRefStringArray{T, N}, v::Null, i::Int) where {T, N} = setindex!(A.elements, v, i)
-Base.setindex!(A::WeakRefStringArray{T, N}, v::Null, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
+Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, i::Int) where {T, N} = setindex!(A.elements, v, i)
+Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, i))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, I...))
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
-Base.push!(a::WeakRefStringArray{T, 1}, v::Null) where {T} = (push!(a.elements, v); a)
+Base.push!(a::WeakRefStringArray{T, 1}, v::Missing) where {T} = (push!(a.elements, v); a)
 Base.push!(a::WeakRefStringArray{T, 1}, v::WeakRefString) where {T} = (push!(a.elements, v); a)
 function Base.push!(A::WeakRefStringArray{T, 1}, v::String) where T
     push!(A.data, Vector{UInt8}(v))
