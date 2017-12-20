@@ -50,7 +50,8 @@ end
     data = Vector{UInt8}("hey there sailor")
     str = WeakRefString(pointer(data), 3)
     C = WeakRefStringArray(data, [str])
-    @test length(C) == 1
+    @test size(C) == (1,)
+    @test eltype(C) === String
 
     A = WeakRefStringArray(UInt8[], WeakRefString{UInt8}, 10)
     @test size(A) == (10,)
@@ -72,14 +73,30 @@ end
     B[1] = "ho"
     append!(A, B)
     @test size(A) == (17,)
+    @test_throws MethodError setindex!(B, missing, 1)
+    @test_throws MethodError push!(B, missing)
 
     D = WeakRefStringArray(UInt8[], Union{Missing, WeakRefString{UInt8}}, 0)
     push!(D, "hey")
     push!(D, str)
     push!(D, missing)
-    @test length(D) == 3
+    @test size(D) == (3,)
     @test D[2] == str
     @test D[3] === missing
     D[2] = missing
     @test D[2] === missing
+    @test_throws MethodError append!(A, D)
+    @test_broken size(A) == (17,) # append!() changes the size of A
+
+    E = WeakRefStringArray(data, [str missing])
+    @test size(E) == (1, 2)
+    @test eltype(E) === Union{String, Missing}
+
+    # WeakRefStringArray only supports WeakRefString elements
+    @test_throws MethodError WeakRefStringArray(UInt8[], String, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], Int, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], Union{String, Missing}, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], Union{Int, Missing}, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], [1, 2])
+    @test_throws MethodError WeakRefStringArray(UInt8[], [1.0, missing])
 end

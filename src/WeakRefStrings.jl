@@ -6,17 +6,20 @@ export WeakRefString, WeakRefStringArray
 using Missings
 
 """
-A custom "weakref" string type that only points to external string data.
-Allows for the creation of a "string" instance without copying data,
-which allows for more efficient string parsing/movement in certain data processing tasks.
+A custom "weak reference" string type that only points to external string data, but does
+not own it. Allows for the creation of a "string" instance without copying the data,
+which provides more efficient string parsing/movement in certain data processing tasks.
 
-**Please note that no original reference is kept to the parent string/memory, so `WeakRefString` becomes unsafe
-once the parent object goes out of scope (i.e. loses a reference to it)**
+**Please note that no original reference is kept to the parent string/memory,
+so `WeakRefString` becomes unsafe once the parent object goes out of scope
+(i.e. loses a reference to it)**
 
 Internally, a `WeakRefString{T}` holds:
 
   * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
   * `len::Int`: the number of code units in the string data
+
+See also [`WeakRefStringArray`](@ref)
 """
 struct WeakRefString{T} <: AbstractString
     ptr::Ptr{T}
@@ -33,6 +36,9 @@ Base.zero(::Type{WeakRefString{T}}) where {T} = WeakRefString(Ptr{T}(0), 0)
 Base.endof(x::WeakRefString) = endof(string(x))
 Base.length(x::WeakRefString) = length(string(x))
 Base.next(x::WeakRefString, i::Int) = (Char(unsafe_load(x.ptr, i)), i + 1)
+if isdefined(Base, :ncodeunits) # around v"0.7.0-DEV.2915"
+    Base.ncodeunits(x::WeakRefString) = x.len
+end
 
 import Base: ==
 function ==(x::WeakRefString{T}, y::WeakRefString{T}) where {T}
@@ -75,14 +81,25 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
-struct WeakRefStringArray{T, N} <: AbstractArray{Union{String, Missing}, N}
-    data::Vector{Any}
-    elements::Array{T, N}
-end
+"""
+A [`WeakRefString`](@ref) container.
+Holds the "strong" references to the data pointed by its strings, ensuring that
+the referenced memory blocks stay valid during `WeakRefStringArray` lifetime.
 
-WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: WeakRefString} = WeakRefStringArray(Any[data], zeros(T, rows))
-WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{Missing, T}}, rows::Integer) where {T} = WeakRefStringArray(Any[data], Vector{Union{Missing, T}}(rows))
-WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
+Otherwise, `WeakRefStringArray` behaves like a normal array of `String` elements
+(or `Union{String, Missing}`, if missing values are allowed).
+"""
+struct WeakRefStringArray{T<:WeakRefString, N, U} <: AbstractArray{Union{String, U}, N}
+    data::Vector{Any}
+    elements::Array{Union{T, U}, N}
+
+    WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Union{}}(Any[data], zeros(T, rows))
+    WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{T, Missing}}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Missing}(Any[data], Vector{Union{T, Missing}}(rows))
+    WeakRefStringArray(data::Vector{UInt8}, A::Array{T, N}) where {T <: Union{WeakRefString, Missing}, N} =
+        new{Missings.T(T), N, T >: Missing ? Missing : Union{}}(Any[data], A)
+end
 
 wk(w::WeakRefString) = string(w)
 wk(::Missing) = missing
