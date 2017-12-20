@@ -50,7 +50,7 @@ end
     data = Vector{UInt8}("hey there sailor")
     str = WeakRefString(pointer(data), 3)
     C = WeakRefStringArray(data, [str])
-    @test length(C) == 1
+    @test size(C) == (1,)
 
     A = WeakRefStringArray(UInt8[], WeakRefString{UInt8}, 10)
     @test size(A) == (10,)
@@ -77,7 +77,7 @@ end
     push!(D, "hey")
     push!(D, str)
     push!(D, missing)
-    @test length(D) == 3
+    @test size(D) == (3,)
     @test D[2] == str
     @test D[3] === missing
     D[2] = missing
