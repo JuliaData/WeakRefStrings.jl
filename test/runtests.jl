@@ -91,4 +91,12 @@ end
     E = WeakRefStringArray(data, [str missing])
     @test size(E) == (1, 2)
     @test eltype(E) === Union{String, Missing}
+
+    # WeakRefStringArray only supports WeakRefString elements
+    @test_throws MethodError WeakRefStringArray(UInt8[], String, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], Int, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], Union{String, Missing}, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], Union{Int, Missing}, 0)
+    @test_throws MethodError WeakRefStringArray(UInt8[], [1, 2])
+    @test_throws MethodError WeakRefStringArray(UInt8[], [1.0, missing])
 end
