@@ -6,12 +6,13 @@ export WeakRefString, WeakRefStringArray
 using Missings
 
 """
-A custom "weakref" string type that only points to external string data.
-Allows for the creation of a "string" instance without copying data,
-which allows for more efficient string parsing/movement in certain data processing tasks.
+A custom "weak reference" string type that only points to external string data, but does
+not own it. Allows for the creation of a "string" instance without copying the data,
+which provides more efficient string parsing/movement in certain data processing tasks.
 
-**Please note that no original reference is kept to the parent string/memory, so `WeakRefString` becomes unsafe
-once the parent object goes out of scope (i.e. loses a reference to it)**
+**Please note that no original reference is kept to the parent string/memory,
+so `WeakRefString` becomes unsafe once the parent object goes out of scope
+(i.e. loses a reference to it)**
 
 Internally, a `WeakRefString{T}` holds:
 
