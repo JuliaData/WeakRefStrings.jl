@@ -75,14 +75,17 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
-struct WeakRefStringArray{T, N} <: AbstractArray{Union{String, Missing}, N}
+struct WeakRefStringArray{T, N, U} <: AbstractArray{Union{String, U}, N}
     data::Vector{Any}
-    elements::Array{T, N}
-end
+    elements::Array{Union{T, U}, N}
 
-WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: WeakRefString} = WeakRefStringArray(Any[data], zeros(T, rows))
-WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{Missing, T}}, rows::Integer) where {T} = WeakRefStringArray(Any[data], Vector{Union{Missing, T}}(rows))
-WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
+    WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Union{}}(Any[data], zeros(T, rows))
+    WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{T, Missing}}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Missing}(Any[data], Vector{Union{T, Missing}}(rows))
+    WeakRefStringArray(data::Vector{UInt8}, A::Array{T, N}) where {T <: Union{WeakRefString, Missing}, N} =
+        new{Missings.T(T), N, T >: Missing ? Missing : Union{}}(Any[data], A)
+end
 
 wk(w::WeakRefString) = string(w)
 wk(::Missing) = missing
