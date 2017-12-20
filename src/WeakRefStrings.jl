@@ -36,6 +36,9 @@ Base.zero(::Type{WeakRefString{T}}) where {T} = WeakRefString(Ptr{T}(0), 0)
 Base.endof(x::WeakRefString) = endof(string(x))
 Base.length(x::WeakRefString) = length(string(x))
 Base.next(x::WeakRefString, i::Int) = (Char(unsafe_load(x.ptr, i)), i + 1)
+if isdefined(Base, :ncodeunits) # around v"0.7.0-DEV.2915"
+    Base.ncodeunits(x::WeakRefString) = x.len
+end
 
 import Base: ==
 function ==(x::WeakRefString{T}, y::WeakRefString{T}) where {T}
