@@ -18,6 +18,8 @@ Internally, a `WeakRefString{T}` holds:
 
   * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
   * `len::Int`: the number of code units in the string data
+
+See also [`WeakRefStringArray`](@ref)
 """
 struct WeakRefString{T} <: AbstractString
     ptr::Ptr{T}
@@ -76,6 +78,14 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
+"""
+A [`WeakRefString`](@ref) container.
+Holds the "strong" references to the data pointed by its strings, ensuring that
+the referenced memory blocks stay valid during `WeakRefStringArray` lifetime.
+
+Otherwise, `WeakRefStringArray` behaves like a normal array of `String` elements
+(or `Union{String, Missing}`, if missing values are allowed).
+"""
 struct WeakRefStringArray{T<:WeakRefString, N, U} <: AbstractArray{Union{String, U}, N}
     data::Vector{Any}
     elements::Array{Union{T, U}, N}
