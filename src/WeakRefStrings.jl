@@ -107,14 +107,14 @@ init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(unin
 WeakRefStringArray(data, ::Type{T}, rows::Integer) where {T} = WeakRefStringArray(Any[data], init(T, rows))
 WeakRefStringArray(data, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
 
-wk(w::WeakRefString) = string(w)
-wk(::Missing) = missing
+wk(A, B::AbstractArray) = WeakRefStringArray(A.data, B)
+wk(A, w::WeakRefString) = string(w)
+wk(A, ::Missing) = missing
 
 Base.size(A::WeakRefStringArray) = size(A.elements)
 Base.eltype(A::WeakRefStringArray{T}) where {T <: WeakRefString} = String
 Base.eltype(A::WeakRefStringArray{Union{Missing, T}}) where {T <: WeakRefString} = Union{Missing, String}
-Base.getindex(A::WeakRefStringArray, i::Int) = wk(A.elements[i])
-Base.getindex(A::WeakRefStringArray{T, N}, I::Vararg{Int, N}) where {T, N} = wk.(A.elements[I...])
+Base.getindex(A::WeakRefStringArray, I...) = wk(A, getindex(A.elements, I...))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, i::Int) where {T, N} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
