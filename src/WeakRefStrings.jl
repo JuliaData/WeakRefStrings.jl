@@ -74,6 +74,14 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
+init(::Type{T}, rows) where {T} = fill(zero(T), rows)
+if !isdefined(Base, :uninitialized)
+    struct Uninitialized end
+    const uninitialized = Uninitialized()
+    Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
+end
+init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
+
 """
 A [`WeakRefString`](@ref) container.
 Holds the "strong" references to the data pointed by its strings, ensuring that
@@ -84,27 +92,19 @@ Julia `String` type by copying the memory; this ensures safe string processing i
 optimizations are desired, the direct `WeakRefString` elements can be accessed by indexing `A.elements`, where
 `A` is a `WeakRefStringArray`.
 """
-struct WeakRefStringArray{T, N} <: AbstractArray{T, N}
+struct WeakRefStringArray{T<:WeakRefString, N, U} <: AbstractArray{Union{String, U}, N}
     data::Vector{Any}
-    elements::Array{T, N}
+    elements::Array{Union{T, U}, N}
 
-    function WeakRefStringArray(data::Vector{Any}, A::Array{WeakRefString{T}, N}) where {T, N}
-        new{WeakRefString{T}, N}(data, A)
-    end
-
-    function WeakRefStringArray(data::Vector{Any}, A::Array{Union{WeakRefString{T}, Missing}, N}) where {T, N}
-        new{Union{WeakRefString{T}, Missing}, N}(data, A)
-    end
+    WeakRefStringArray(data::Vector{Any}, ::Type{T}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Union{}}(data, init(T, rows))
+    WeakRefStringArray(data::Vector{Any}, TT::Type{Union{T, Missing}}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Missing}(data, init(TT, rows))
+    WeakRefStringArray(data::Vector{Any}, A::Array{T, N}) where {T <: Union{WeakRefString, Missing}, N} =
+        new{Missings.T(T), N, T >: Missing ? Missing : Union{}}(data, A)
 end
 
-init(::Type{T}, rows) where {T} = fill(zero(T), rows)
-if !isdefined(Base, :uninitialized)
-    struct Uninitialized end
-    const uninitialized = Uninitialized()
-    Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
-end
-init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
-WeakRefStringArray(data, ::Type{T}, rows::Integer) where {T} = WeakRefStringArray(Any[data], init(T, rows))
+WeakRefStringArray(data, ::Type{T}, rows::Integer) where {T} = WeakRefStringArray(Any[data], T, rows)
 WeakRefStringArray(data, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
 
 wk(A, B::AbstractArray) = WeakRefStringArray(A.data, B)
@@ -112,8 +112,6 @@ wk(A, w::WeakRefString) = string(w)
 wk(A, ::Missing) = missing
 
 Base.size(A::WeakRefStringArray) = size(A.elements)
-Base.eltype(A::WeakRefStringArray{T}) where {T <: WeakRefString} = String
-Base.eltype(A::WeakRefStringArray{Union{Missing, T}}) where {T <: WeakRefString} = Union{Missing, String}
 Base.getindex(A::WeakRefStringArray, I...) = wk(A, getindex(A.elements, I...))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, i::Int) where {T, N} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
