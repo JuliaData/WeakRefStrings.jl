@@ -46,7 +46,7 @@ end
     str = WeakRefStrings.WeakRefString(pointer(data), 3)
     C = WeakRefStringArray(data, [str])
     @test length(C) == 1
-    @test eltype(C) == String
+    @test eltype(C) === String
 
     A = WeakRefStringArray(UInt8[], WeakRefStrings.WeakRefString{UInt8}, 10)
     @test size(A) == (10,)
@@ -79,4 +79,9 @@ end
     @test D[3] === missing
     D[2] = missing
     @test D[2] === missing
+
+    E = WeakRefStringArray(data, [str missing])
+    @test size(E) == (1, 2)
+    @test eltype(E) === Union{String, Missing}
+
 end
