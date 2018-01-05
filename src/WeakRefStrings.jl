@@ -5,6 +5,10 @@ export WeakRefString, WeakRefStringArray
 
 using Missings
 
+if !isdefined(Base, :codeunits)
+    codeunits = Vector{UInt8}
+end
+
 """
 A custom "weakref" string type that only points to external string data.
 Allows for the creation of a "string" instance without copying data,
@@ -119,14 +123,14 @@ Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, i::Int) where {T, N} = s
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
-Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, i))
-Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, I...))
+Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
+Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, I...))
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
 Base.push!(a::WeakRefStringArray{T, 1}, v::Missing) where {T} = (push!(a.elements, v); a)
 Base.push!(a::WeakRefStringArray{T, 1}, v::WeakRefString) where {T} = (push!(a.elements, v); a)
 function Base.push!(A::WeakRefStringArray{T, 1}, v::String) where T
-    push!(A.data, Vector{UInt8}(v))
+    push!(A.data, codeunits(v))
     push!(A.elements, v)
     return A
 end
