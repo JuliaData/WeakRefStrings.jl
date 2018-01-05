@@ -5,6 +5,10 @@ export WeakRefString, WeakRefStringArray
 
 using Missings
 
+if !isdefined(Base, :codeunits)
+    codeunits = Vector{UInt8}
+end
+
 """
 A custom "weakref" string type that only points to external string data.
 Allows for the creation of a "string" instance without copying data,
@@ -17,6 +21,8 @@ Internally, a `WeakRefString{T}` holds:
 
   * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
   * `len::Int`: the number of code units in the string data
+
+See also [`WeakRefStringArray`](@ref)
 """
 struct WeakRefString{T} <: AbstractString
     ptr::Ptr{T}
@@ -30,9 +36,6 @@ const NULLSTRING = WeakRefString(Ptr{UInt8}(0), 0)
 const NULLSTRING16 = WeakRefString(Ptr{UInt16}(0), 0)
 const NULLSTRING32 = WeakRefString(Ptr{UInt32}(0), 0)
 Base.zero(::Type{WeakRefString{T}}) where {T} = WeakRefString(Ptr{T}(0), 0)
-Base.endof(x::WeakRefString) = endof(string(x))
-Base.length(x::WeakRefString) = length(string(x))
-Base.next(x::WeakRefString, i::Int) = (Char(unsafe_load(x.ptr, i)), i + 1)
 
 import Base: ==
 function ==(x::WeakRefString{T}, y::WeakRefString{T}) where {T}
@@ -58,10 +61,10 @@ function Base.show(io::IO, x::WeakRefString{T}) where {T}
     return
 end
 Base.print(io::IO, s::WeakRefString) = print(io, string(s))
-if VERSION < v"0.7-DEV"
-    Base.strwidth(s::WeakRefString) = strwidth(string(s))
-else
+if isdefined(Base, :textwidth)
     Base.textwidth(s::WeakRefString) = textwidth(string(s))
+else
+    Base.strwidth(s::WeakRefString) = strwidth(string(s))
 end
 
 chompnull(x::WeakRefString{T}) where {T} = unsafe_load(x.ptr, x.len) == T(0) ? x.len - 1 : x.len
@@ -75,33 +78,59 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
-struct WeakRefStringArray{T, N} <: AbstractArray{Union{String, Missing}, N}
+init(::Type{T}, rows) where {T} = fill(zero(T), rows)
+if !isdefined(Base, :uninitialized)
+    struct Uninitialized end
+    const uninitialized = Uninitialized()
+    Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
+end
+init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
+
+"""
+A [`WeakRefString`](@ref) container.
+Holds the "strong" references to the data pointed by its strings, ensuring that
+the referenced memory blocks stay valid during `WeakRefStringArray` lifetime.
+
+Upon indexing an elemnt in a `WeakRefStringArray`, the underlying `WeakRefString` is converted to a proper
+Julia `String` type by copying the memory; this ensures safe string processing in the general case. If additional
+optimizations are desired, the direct `WeakRefString` elements can be accessed by indexing `A.elements`, where
+`A` is a `WeakRefStringArray`.
+"""
+struct WeakRefStringArray{T<:WeakRefString, N, U} <: AbstractArray{Union{String, U}, N}
     data::Vector{Any}
-    elements::Array{T, N}
+    elements::Array{Union{T, U}, N}
+
+    WeakRefStringArray(data::Vector{Any}, ::Type{T}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Union{}}(data, init(T, rows))
+    WeakRefStringArray(data::Vector{Any}, TT::Type{Union{T, Missing}}, rows::Integer) where {T <: WeakRefString} =
+        new{T, 1, Missing}(data, init(TT, rows))
+    WeakRefStringArray(data::Vector{Any}, A::Array{Union{T, Missing}, N}) where {T <: WeakRefString, N} =
+        new{T, N, Missing}(data, A)
+    WeakRefStringArray(data::Vector{Any}, A::Array{T, N}) where {T <: WeakRefString, N} =
+        new{T, N, Union{}}(data, A)
 end
 
-WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows::Integer) where {T <: WeakRefString} = WeakRefStringArray(Any[data], zeros(T, rows))
-WeakRefStringArray(data::Vector{UInt8}, ::Type{Union{Missing, T}}, rows::Integer) where {T} = WeakRefStringArray(Any[data], Vector{Union{Missing, T}}(rows))
-WeakRefStringArray(data::Vector{UInt8}, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
+WeakRefStringArray(data, ::Type{T}, rows::Integer) where {T} = WeakRefStringArray(Any[data], T, rows)
+WeakRefStringArray(data, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
 
-wk(w::WeakRefString) = string(w)
-wk(::Missing) = missing
+wk(A, B::AbstractArray) = WeakRefStringArray(A.data, B)
+wk(A, w::WeakRefString) = string(w)
+wk(A, ::Missing) = missing
 
 Base.size(A::WeakRefStringArray) = size(A.elements)
-Base.getindex(A::WeakRefStringArray, i::Int) = wk(A.elements[i])
-Base.getindex(A::WeakRefStringArray{T, N}, I::Vararg{Int, N}) where {T, N} = wk.(A.elements[I...])
+Base.getindex(A::WeakRefStringArray, I...) = wk(A, getindex(A.elements, I...))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, i::Int) where {T, N} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
-Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, i))
-Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, Vector{UInt8}(v)); setindex!(A.elements, v, I...))
+Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
+Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, I...))
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
 Base.push!(a::WeakRefStringArray{T, 1}, v::Missing) where {T} = (push!(a.elements, v); a)
 Base.push!(a::WeakRefStringArray{T, 1}, v::WeakRefString) where {T} = (push!(a.elements, v); a)
 function Base.push!(A::WeakRefStringArray{T, 1}, v::String) where T
-    push!(A.data, Vector{UInt8}(v))
+    push!(A.data, codeunits(v))
     push!(A.elements, v)
     return A
 end

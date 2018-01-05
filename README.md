@@ -1,7 +1,7 @@
 
 # WeakRefStrings
 
-*An alternative string storage format for Julia*
+*A string type for minimizing data-transfer costs in Julia*
 
 | **PackageEvaluator**                                            | **Build Status**                                                                                |
 |:---------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
@@ -41,33 +41,6 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 
 ## Usage
 
-A custom "weakref" string type that only points to external string data.
-Allows for the creation of a "string" instance without copying data,
-which allows for more efficient string parsing/movement in certain data processing tasks.
+Usage of `WeakRefString`s is discouraged for general users. Currently, a `WeakRefString` purposely _does not_ implement many Base Julia String interface methods due to many recent changes to Julia's builtin String interface, as well as the complexity to do so correctly. As such, `WeakRefString`s are used primarily in the data ecosystem as an IO optimization and nothing more. Upon indexing a `WeakRefStringArray`, a proper Julia `String` type is materialized for safe, correct string processing. In the future, it may be possible to implement safe operations on `WeakRefString` itself, but for now, they must be converted to a `String` for any real work.
 
-**Please note that no original reference is kept to the parent string/memory, so `WeakRefString` becomes unsafe
-once the parent object goes out of scope (i.e. loses a reference to it)**
-
-Internally, a `WeakRefString{T}` holds:
-
-  * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
-  * `len::Int`: the number of code units in the string data
-
-
-```julia
-data = Vector{UInt8}("hey there sailor")
-
-str = WeakRefString(pointer(data), 3)
-@test length(str) == 3
-for (i,c) in enumerate(str)
-    @test data[i] == c % UInt8
-end
-@test string(str) == "hey"
-```
-
-To facilitate using WeakRefStrings, a `WeakRefStringArray` type is provided that can simultaneously act as an `Array{WeakRefString{T}, N}` while also holding on to data references that the WeakRefStrings point to. Usage, is simple:
-```julia
-WeakRefStringArray(data::Vector{UInt8}, ::Type{T}, rows) => WeakRefStringArray{T, 1}
-WeakRefStringArray(data::Vector{UInt8}, A::Array{WeakRefString{T}, N}) => WeakRefStringArray{T, N}
-```
-In both cases, the first argument passed is the data that should be held in reference. An "empty" WeakRefString can be constructed by passing the WeakRefString element type and a number of rows, or an already constructed Array of WeakRefStrings can be passed in directly.
+Additional documentation is available at the REPL for `?WeakRefStringArray` and `?WeakRefString`.

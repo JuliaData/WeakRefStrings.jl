@@ -1,14 +1,15 @@
-using WeakRefStrings, Base.Test, Missings
-
+using WeakRefStrings, Missings
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
 @testset "WeakRefString{UInt8}" begin
     data = Vector{UInt8}("hey there sailor")
 
-    str = WeakRefString(pointer(data), 3)
+    str = WeakRefStrings.WeakRefString(pointer(data), 3)
 
-    @test length(str) == 3
-    for (i,c) in enumerate(str)
-        @test data[i] == c % UInt8
-    end
+    @test str.len == 3
     @test string(str) == "hey"
     @test String(str) == "hey"
 
@@ -24,35 +25,30 @@ end
     # simulate UTF16 data
     data = [0x0068, 0x0065, 0x0079]
 
-    str = WeakRefString(pointer(data), 3)
-    @test typeof(str) == WeakRefString{UInt16}
+    str = WeakRefStrings.WeakRefString(pointer(data), 3)
+    @test typeof(str) == WeakRefStrings.WeakRefString{UInt16}
     @test String(str) == "hey"
-    @test length(str) == 3
-    for (i,c) in enumerate(str)
-        @test data[i] == c % UInt8
-    end
+    @test str.len == 3
 end
 
 @testset "WeakRefString{UInt32}" begin
     # simulate UTF32 data with trailing null byte
     data = [0x00000068, 0x00000065, 0x00000079, 0x00000000]
 
-    str = WeakRefString(pointer(data), 4)
-    @test typeof(str) == WeakRefString{UInt32}
+    str = WeakRefStrings.WeakRefString(pointer(data), 4)
+    @test typeof(str) == WeakRefStrings.WeakRefString{UInt32}
     @test String(str) == "hey"
-    @test length(str) == 3
-    for (i,c) in enumerate(str)
-        @test data[i] == c % UInt8
-    end
+    @test str.len == 4
 end
 
 @testset "WeakRefArray" begin
     data = Vector{UInt8}("hey there sailor")
-    str = WeakRefString(pointer(data), 3)
+    str = WeakRefStrings.WeakRefString(pointer(data), 3)
     C = WeakRefStringArray(data, [str])
     @test length(C) == 1
+    @test eltype(C) === String
 
-    A = WeakRefStringArray(UInt8[], WeakRefString{UInt8}, 10)
+    A = WeakRefStringArray(UInt8[], WeakRefStrings.WeakRefString{UInt8}, 10)
     @test size(A) == (10,)
     @test A[1] == ""
     @test A[1, 1] == ""
@@ -66,20 +62,26 @@ end
     @test A[end] == str
     push!(A, "hi")
     @test length(A) == 7
-    @test A[end] == convert(WeakRefString{UInt8}, "hi")
+    @test A[end] == convert(WeakRefStrings.WeakRefString{UInt8}, "hi")
 
-    B = WeakRefStringArray(UInt8[], WeakRefString{UInt8}, 10)
+    B = WeakRefStringArray(UInt8[], WeakRefStrings.WeakRefString{UInt8}, 10)
     B[1] = "ho"
     append!(A, B)
     @test size(A) == (17,)
 
-    D = WeakRefStringArray(UInt8[], Union{Missing, WeakRefString{UInt8}}, 0)
+    D = WeakRefStringArray(UInt8[], Union{Missing, WeakRefStrings.WeakRefString{UInt8}}, 0)
     push!(D, "hey")
     push!(D, str)
     push!(D, missing)
     @test length(D) == 3
+    @test eltype(D) == Union{Missing, String}
     @test D[2] == str
     @test D[3] === missing
     D[2] = missing
     @test D[2] === missing
+
+    E = WeakRefStringArray(data, [str missing])
+    @test size(E) == (1, 2)
+    @test eltype(E) === Union{String, Missing}
+
 end
