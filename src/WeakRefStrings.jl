@@ -100,17 +100,13 @@ struct WeakRefStringArray{T<:WeakRefString, N, U} <: AbstractArray{Union{String,
     data::Vector{Any}
     elements::Array{Union{T, U}, N}
 
-    WeakRefStringArray(data::Vector{Any}, ::Type{T}, rows::Integer) where {T <: WeakRefString} =
-        new{T, 1, Union{}}(data, init(T, rows))
-    WeakRefStringArray(data::Vector{Any}, TT::Type{Union{T, Missing}}, rows::Integer) where {T <: WeakRefString} =
-        new{T, 1, Missing}(data, init(TT, rows))
     WeakRefStringArray(data::Vector{Any}, A::Array{Union{T, Missing}, N}) where {T <: WeakRefString, N} =
         new{T, N, Missing}(data, A)
     WeakRefStringArray(data::Vector{Any}, A::Array{T, N}) where {T <: WeakRefString, N} =
         new{T, N, Union{}}(data, A)
 end
 
-WeakRefStringArray(data, ::Type{T}, rows::Integer) where {T} = WeakRefStringArray(Any[data], T, rows)
+WeakRefStringArray(data, ::Type{T}, rows::Integer) where {T} = WeakRefStringArray(Any[data], init(T, rows))
 WeakRefStringArray(data, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
 
 wk(A, B::AbstractArray) = WeakRefStringArray(A.data, B)
