@@ -30,7 +30,8 @@ struct WeakRefString{T} <: AbstractString
 end
 
 WeakRefString(ptr::Ptr{T}, len) where {T} = WeakRefString(ptr, Int(len))
-WeakRefString(t::Tuple{Ptr{T}, Int}) where {T} = WeakRefString(t[1], t[2])
+WeakRefString(t::Tuple{Ptr{T}, Int}) where {T} = WeakRefString(t...)
+WeakRefString(a::Vector{T}) where T <: Union{UInt8,UInt16,UInt32} = WeakRefString(pointer(a), length(a))
 
 const NULLSTRING = WeakRefString(Ptr{UInt8}(0), 0)
 const NULLSTRING16 = WeakRefString(Ptr{UInt16}(0), 0)
@@ -85,6 +86,26 @@ if !isdefined(Base, :uninitialized)
     Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
 end
 init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
+
+# Iteration. Largely indentical to Julia 0.6's String
+
+Base.pointer(s::WeakRefString) = s.ptr
+Base.endof(s::WeakRefString)   = s.len
+
+@inline function Base.next(s::WeakRefString{UInt8}, i::Int)
+    # function is split into this critical fast-path
+    # for pure ascii data, such as parsing numbers,
+    # and a longer function that can handle any utf8 data
+    @boundscheck if (i < 1) | (i > s.len)
+        throw(BoundsError(s, i))
+    end
+    p = pointer(s)
+    b = unsafe_load(p, i)
+    if b < 0x80
+        return Char(b), i + 1
+    end
+    return Base.slow_utf8_next(p, b, i, s.len)
+end
 
 """
 A [`WeakRefString`](@ref) container.
