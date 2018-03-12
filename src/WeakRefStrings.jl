@@ -116,10 +116,13 @@ wk(A, ::Missing) = missing
 Base.size(A::WeakRefStringArray) = size(A.elements)
 Base.getindex(A::WeakRefStringArray, I...) = wk(A, getindex(A.elements, I...))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, i::Int) where {T, N} = setindex!(A.elements, v, i)
+Base.setindex!(A::WeakRefStringArray{T, 1}, v::Missing, i::Int) where {T} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
+Base.setindex!(A::WeakRefStringArray{T, 1}, v::WeakRefString, i::Int) where {T} = setindex!(A.elements, v, i)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
+Base.setindex!(A::WeakRefStringArray{T, 1}, v::String, i::Int) where {T} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, I...))
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
