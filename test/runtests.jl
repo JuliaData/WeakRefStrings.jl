@@ -1,11 +1,7 @@
-using WeakRefStrings, Missings
-@static if VERSION < v"0.7.0-DEV.2005"
-    using Base.Test
-else
-    using Test
-end
+using WeakRefStrings, Missings, Compat, Compat.Test
+
 @testset "WeakRefString{UInt8}" begin
-    data = Vector{UInt8}("hey there sailor")
+    data = codeunits("hey there sailor")
 
     str = WeakRefStrings.WeakRefString(pointer(data), 3)
 
@@ -42,7 +38,7 @@ end
 end
 
 @testset "WeakRefArray" begin
-    data = Vector{UInt8}("hey there sailor")
+    data = codeunits("hey there sailor")
     str = WeakRefStrings.WeakRefString(pointer(data), 3)
     C = WeakRefStringArray(data, [str])
     @test length(C) == 1

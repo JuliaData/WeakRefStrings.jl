@@ -3,11 +3,7 @@ module WeakRefStrings
 
 export WeakRefString, WeakRefStringArray
 
-using Missings
-
-if !isdefined(Base, :codeunits)
-    codeunits = Vector{UInt8}
-end
+using Missings, Compat
 
 """
 A custom "weakref" string type that only points to external string data.
@@ -79,12 +75,7 @@ Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
 init(::Type{T}, rows) where {T} = fill(zero(T), rows)
-if !isdefined(Base, :uninitialized)
-    struct Uninitialized end
-    const uninitialized = Uninitialized()
-    Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
-end
-init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
+init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(undef, rows)
 
 """
 A [`WeakRefString`](@ref) container.
