@@ -121,6 +121,11 @@ Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, 
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, I...))
+if VERSION < v"0.7.0-DEV.3673" # Work around incorrect ambiguity error (PR #26)
+    Base.setindex!(A::WeakRefStringArray{T, 1}, v::Missing, i::Int) where {T} = setindex!(A.elements, v, i)
+    Base.setindex!(A::WeakRefStringArray{T, 1}, v::WeakRefString, i::Int) where {T} = setindex!(A.elements, v, i)
+    Base.setindex!(A::WeakRefStringArray{T, 1}, v::String, i::Int) where {T} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
+end
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
 Base.push!(a::WeakRefStringArray{T, 1}, v::Missing) where {T} = (push!(a.elements, v); a)
