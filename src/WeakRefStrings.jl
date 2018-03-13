@@ -88,9 +88,17 @@ end
 init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
 
 # Iteration. Largely indentical to Julia 0.6's String
-
 Base.pointer(s::WeakRefString) = s.ptr
-Base.endof(s::WeakRefString)   = s.len
+Base.pointer(s::WeakRefString, i::Integer) = s.ptr + i - 1
+Base.sizeof(s::WeakRefString) = s.len
+function Base.endof(s::WeakRefString)
+    p = pointer(s)
+    i = sizeof(s)
+    while i > 0 && Base.is_valid_continuation(unsafe_load(p, i))
+        i -= 1
+    end
+    i
+end
 
 @inline function Base.next(s::WeakRefString{UInt8}, i::Int)
     # function is split into this critical fast-path
@@ -104,7 +112,7 @@ Base.endof(s::WeakRefString)   = s.len
     if b < 0x80
         return Char(b), i + 1
     end
-    return Base.slow_utf8_next(p, b, i, s.len)
+    return Base.slow_utf8_next(p, b, i, sizeof(s))
 end
 
 """
