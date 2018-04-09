@@ -1,13 +1,17 @@
 __precompile__(true)
 module WeakRefStrings
 
-export WeakRefString, WeakRefStringArray
+export WeakRefString, WeakRefStringArray, StringArray, StringVector
 
 using Missings
 
 if !isdefined(Base, :codeunits)
     codeunits = Vector{UInt8}
 end
+
+########################################################################
+# WeakRefString
+########################################################################
 
 """
 A custom "weakref" string type that only points to external string data.
@@ -79,17 +83,16 @@ Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))
 Base.String(x::WeakRefString) = string(x)
 Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UInt8}, Int), x.ptr, x.len)
 
-init(::Type{T}, rows) where {T} = fill(zero(T), rows)
-if !isdefined(Base, :uninitialized)
-    struct Uninitialized end
-    const uninitialized = Uninitialized()
-    Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
-end
-init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
-
-# Iteration. Largely indentical to Julia 0.6's String
 Base.pointer(s::WeakRefString) = s.ptr
 Base.pointer(s::WeakRefString, i::Integer) = s.ptr + i - 1
+
+# Iteration. Largely indentical to Julia 0.6's String
+function Base.start(s::WeakRefString)
+    if s.ptr == C_NULL
+        throw(ArgumentError("pointer has been zeroed. The zeroing most likely happened because the string was moved from a process to another."))
+    end
+    return 1
+end
 Base.sizeof(s::WeakRefString) = s.len
 function Base.endof(s::WeakRefString)
     p = pointer(s)
@@ -114,6 +117,18 @@ end
     end
     return Base.slow_utf8_next(p, b, i, sizeof(s))
 end
+
+########################################################################
+# WeakRefStringArray
+########################################################################
+
+init(::Type{T}, rows) where {T} = fill(zero(T), rows)
+if !isdefined(Base, :uninitialized)
+    struct Uninitialized end
+    const uninitialized = Uninitialized()
+    Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
+end
+init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
 
 """
 A [`WeakRefString`](@ref) container.
@@ -168,6 +183,186 @@ end
 
 function Base.vcat(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) where T
     WeakRefStringArray(Any[a.data, b.data], vcat(a.elements, b.elements))
+end
+
+
+########################################################################
+# StringArray
+########################################################################
+
+const STR = Union{Missing, <:AbstractString}
+
+"""
+`StringArray{T,N}`
+
+Efficient storage for N dimensional array of strings.
+
+`StringArray` stores underlying string data for all elements of the array
+in a single contiguous buffer. It maintains offset and length for each
+element.
+
+`T` can be `String`, `WeakRefString`, `Union{Missing, String}` or
+`Union{Missing, WeakRefString}`. `getindex` will return this type although
+all variants have the same storage format.
+
+You can use `convert(StringArray{U}, ::StringArray{T})` to change the
+element type (e.g. to `WeakRefString` for efficiency) without copying
+the data.
+
+# Example construction
+
+```
+julia> sa = StringArray(["x", "y"]) # from Array{String}
+2-element WeakRefStrings.StringArray{String,1}:
+ "x"
+ "y"
+
+julia> sa = StringArray{WeakRefString}(["x", "y"])
+2-element WeakRefStrings.StringArray{WeakRefStrings.WeakRefString,1}:
+ "x"
+ "y"
+
+julia> sa = StringArray{Union{Missing, String}}(["x", "y"]) # with Missing
+2-element WeakRefStrings.StringArray{Union{Missings.Missing, String},1}:
+ "x"
+ "y"
+
+julia> sa = StringArray{Union{Missing, String}}(2,2) # uninitialized
+2×2 WeakRefStrings.StringArray{Union{Missings.Missing, String},2}:
+ #undef  #undef
+ #undef  #undef
+```
+"""
+struct StringArray{T, N} <: AbstractArray{T, N}
+    buffer::Vector{UInt8}
+    offsets::Array{UInt64, N}
+    lengths::Array{UInt32, N}
+end
+
+const StringVector{T} = StringArray{T, 1}
+
+const UNDEF_OFFSET = typemax(UInt64)
+const MISSING_OFFSET = typemax(UInt64)-1
+
+Base.size(a::StringArray) = size(a.offsets)
+Base.IndexStyle(::Type{<:StringVector}) = IndexLinear()
+
+# no-copy convert between eltypes
+"""
+`convert(StringArray{U}, A::StringArray{T})`
+
+convert `A` to StringArray of another element type (`U`) without
+copying the underlying data.
+"""
+function Base.convert(::Type{<:StringArray{T}}, x::StringArray{<:STR,N}) where {T, N}
+    StringArray{T, ndims(x)}(x.buffer, x.offsets, x.lengths)
+end
+
+function (::Type{StringArray{T, N}})(dims::Tuple{Vararg{Integer}}) where {T,N}
+    StringArray{T,N}(Vector{UInt8}(0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
+end
+
+(::Type{StringArray{T, N}})(dims::Integer...) where {T,N} = StringArray{T,N}(dims)
+(::Type{StringArray{T}})(dims::Integer...) where {T} = StringArray{T,length(dims)}(dims)
+function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) where {T,N}
+    s = StringArray{T, N}(size(arr))
+    @inbounds for i in eachindex(arr)
+        if _isassigned(arr, i)
+            s[i] = arr[i]
+        else
+            s.offsets[i] = UNDEF_OFFSET
+            s.lengths[i] = 0
+        end
+    end
+    s
+end
+Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = StringArray{T}(arr)
+Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = StringVector{S}(arr)
+(::Type{StringVector{T}})() where {T} = StringVector{T}(Vector{UInt8}(0), UInt64[], UInt32[])
+(::Type{StringVector})() = StringVector{String}()
+
+_isassigned(arr, i...) = isassigned(arr, i...)
+_isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)
+@inline Base.@propagate_inbounds function Base.getindex(a::StringArray{T}, i::Integer...) where T
+    offset = a.offsets[i...]
+    if offset == UNDEF_OFFSET
+        throw(UndefRefError())
+    end
+
+    if Missing <: T && offset === MISSING_OFFSET
+        return missing
+    end
+
+    convert(T, WeakRefString(pointer(a.buffer) + offset, a.lengths[i...]))
+end
+
+function Base.similar(a::StringArray, T::Type{<:STR}, dims::Tuple{Vararg{Int64, N}}) where N
+    StringArray{T, N}(dims)
+end
+
+function Base.empty!(a::StringVector)
+    empty!(a.buffer)
+    empty!(a.offsets)
+    empty!(a.lengths)
+end
+
+Base.copy(a::StringArray{T, N}) where {T,N} = StringArray{T, N}(copy(a.buffer), copy(a.offsets), copy(a.lengths))
+
+@inline function Base.setindex!(arr::StringArray, val::WeakRefString, idx::Integer...)
+    p = pointer(arr.buffer)
+    if val.ptr <= p + sizeof(arr.buffer)-1 && val.ptr >= p
+        # this WeakRefString points to data entirely within arr's buffer
+        # don't add anything to the buffer in this case.
+        # this optimization helps `permute!`
+        arr.offsets[idx...] = val.ptr - p
+        arr.lengths[idx...] = val.len
+    else
+        _setindex!(arr, val, idx...)
+    end
+end
+
+@inline function Base.setindex!(arr::StringArray, val::STR, idx::Integer...)
+    _setindex!(arr, val, idx...)
+end
+
+function _setindex!(arr::StringArray, val::AbstractString, idx...)
+    buffer = arr.buffer
+    l = length(arr.buffer)
+    resize!(buffer, l + sizeof(val))
+    unsafe_copy!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
+    arr.lengths[idx...] = sizeof(val)
+    arr.offsets[idx...] = l
+    val
+end
+
+function _setindex!(arr::StringArray, val::Missing, idx...)
+    arr.lengths[idx...] = 0
+    arr.offsets[idx...] = MISSING_OFFSET
+end
+
+function Base.resize!(arr::StringVector, len)
+    l = length(arr)
+    resize!(arr.offsets, len)
+    resize!(arr.lengths, len)
+    if l < len
+        arr.offsets[l+1:len] = UNDEF_OFFSET # undef
+        arr.lengths[l+1:len] = 0
+    end
+    arr
+end
+
+function Base.push!(arr::StringVector, val::AbstractString)
+    l = length(arr.buffer)
+    resize!(arr.buffer, l + sizeof(val))
+    unsafe_copy!(pointer(arr.buffer, l + 1), pointer(val,1), sizeof(val))
+    push!(arr.offsets, l)
+    push!(arr.lengths, sizeof(val))
+    arr
+end
+
+function Base.push!(arr::StringVector, val::Missing)
+    push!(arr.offsets, MISSING_OFFSET)
+    push!(arr.lengths, 0)
 end
 
 end # module
