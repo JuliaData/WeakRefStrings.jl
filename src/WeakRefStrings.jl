@@ -262,8 +262,16 @@ function (::Type{StringArray{T, N}})(dims::Tuple{Vararg{Integer}}) where {T,N}
     StringArray{T,N}(Vector{UInt8}(0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
 end
 
-(::Type{StringArray{T, N}})(dims::Integer...) where {T,N} = StringArray{T,N}(dims)
-(::Type{StringArray{T}})(dims::Integer...) where {T} = StringArray{T,length(dims)}(dims)
+function (::Type{StringArray{T}})(dims::Tuple{Vararg{Integer}}) where {T}
+    StringArray{T,length(dims)}(dims)
+end
+
+function (::Type{StringArray})(dims::Tuple{Vararg{Integer}})
+    StringArray{String}(dims)
+end
+
+(::Type{<:StringArray})(dims::Integer...) = StringArray{String,length(dims)}(dims)
+
 function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) where {T,N}
     s = StringArray{T, N}(size(arr))
     @inbounds for i in eachindex(arr)
