@@ -373,4 +373,10 @@ function Base.push!(arr::StringVector, val::Missing)
     push!(arr.lengths, 0)
 end
 
+function Base.deleteat!(arr::StringVector, idx::Integer)
+    deleteat!(arr.lengths, idx)
+    deleteat!(arr.offsets, idx)
+    arr
+end
+
 end # module

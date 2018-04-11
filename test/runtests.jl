@@ -121,15 +121,15 @@ end
         end
     end
 
-    @testset "A broken case" begin
+    @testset "resize+index" begin
         sv = StringVector(["JuliaDB", "TextParse"])
-        @test length(resize!(sv, 1)[1]) == 7
+        @test resize!(sv, 1)[1] == "JuliaDB"
     end
 
-    @testset "Another broken case" begin
+    @testset "filter regex" begin
         sv = StringVector(["TextParse", "TextParse", "JuliaDB", "TextParse", "TextParse", "TextParse", "TextParse", "JuliaDB", "JuliaDB"])
         sv[end] = "Dagger"
         sv[1] = "Dagger"
-        filter(r"JuliaDB", sv)
+        @test length(filter(r"JuliaDB", sv)) == 2
     end
 end
