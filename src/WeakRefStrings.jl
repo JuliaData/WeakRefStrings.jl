@@ -289,6 +289,8 @@ Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<
 (::Type{StringVector{T}})() where {T} = StringVector{T}(Vector{UInt8}(0), UInt64[], UInt32[])
 (::Type{StringVector})() = StringVector{String}()
 
+(T::Type{<:StringArray})(arr::AbstractArray{<:STR}) = convert(T, arr)
+
 _isassigned(arr, i...) = isassigned(arr, i...)
 _isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)
 @inline Base.@propagate_inbounds function Base.getindex(a::StringArray{T}, i::Integer...) where T
