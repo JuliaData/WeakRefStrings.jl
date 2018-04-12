@@ -94,6 +94,11 @@ function Base.start(s::WeakRefString)
     return 1
 end
 Base.sizeof(s::WeakRefString) = s.len
+
+if isdefined(Base, :ncodeunits) # only on 0.7
+    Base.ncodeunits(s::WeakRefString{T}) where T = sizeof(T) * s.len
+end
+
 function Base.endof(s::WeakRefString)
     p = pointer(s)
     i = sizeof(s)
@@ -103,21 +108,30 @@ function Base.endof(s::WeakRefString)
     i
 end
 
-@inline function Base.next(s::WeakRefString{UInt8}, i::Int)
-    # function is split into this critical fast-path
-    # for pure ascii data, such as parsing numbers,
-    # and a longer function that can handle any utf8 data
-    @boundscheck if (i < 1) | (i > s.len)
-        throw(BoundsError(s, i))
-    end
-    p = pointer(s)
-    b = unsafe_load(p, i)
-    if b < 0x80
-        return Char(b), i + 1
-    end
-    return Base.slow_utf8_next(p, b, i, sizeof(s))
-end
+if VERSION < v"0.7.0-DEV"
 
+    @inline function Base.next(s::WeakRefString{UInt8}, i::Int)
+        # function is split into this critical fast-path
+        # for pure ascii data, such as parsing numbers,
+        # and a longer function that can handle any utf8 data
+        @boundscheck if (i < 1) | (i > s.len)
+            throw(BoundsError(s, i))
+        end
+        p = pointer(s)
+        b = unsafe_load(p, i)
+        if b < 0x80
+            return Char(b), i + 1
+        end
+        return Base.slow_utf8_next(p, b, i, sizeof(s))
+    end
+else
+    Base.@propagate_inbounds function Base.next(s::String, i::Int)
+        b = Base.codeunit(s, i)
+        u = UInt32(b) << 24
+        Base.between(b, 0x80, 0xf7) || return reinterpret(Char, u), i+1
+        return Base.next_continued(s, i, u)
+    end
+end
 ########################################################################
 # WeakRefStringArray
 ########################################################################
@@ -259,7 +273,7 @@ function Base.convert(::Type{<:StringArray{T}}, x::StringArray{<:STR,N}) where {
 end
 
 function (::Type{StringArray{T, N}})(dims::Tuple{Vararg{Integer}}) where {T,N}
-    StringArray{T,N}(Vector{UInt8}(0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
+    StringArray{T,N}(similar(Vector{UInt8}, 0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
 end
 
 function (::Type{StringArray{T}})(dims::Tuple{Vararg{Integer}}) where {T}
