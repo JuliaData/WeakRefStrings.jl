@@ -90,7 +90,7 @@ function Base.start(s::WeakRefString)
     return 1
 end
 
-if VERSION < v"0.7.0-DEV"
+@static if VERSION < v"0.7.0-DEV"
 
 Base.sizeof(s::WeakRefString) = s.len
 
