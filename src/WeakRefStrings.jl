@@ -93,11 +93,10 @@ function Base.start(s::WeakRefString)
     end
     return 1
 end
-Base.sizeof(s::WeakRefString) = s.len
 
-if isdefined(Base, :ncodeunits) # only on 0.7
-    Base.ncodeunits(s::WeakRefString{T}) where T = sizeof(T) * s.len
-end
+if VERSION < v"0.7.0-DEV"
+
+Base.sizeof(s::WeakRefString) = s.len
 
 function Base.endof(s::WeakRefString)
     p = pointer(s)
@@ -108,41 +107,74 @@ function Base.endof(s::WeakRefString)
     i
 end
 
-if VERSION < v"0.7.0-DEV"
+@inline function Base.next(s::WeakRefString{UInt8}, i::Int)
+    # function is split into this critical fast-path
+    # for pure ascii data, such as parsing numbers,
+    # and a longer function that can handle any utf8 data
+    @boundscheck if (i < 1) | (i > s.len)
+        throw(BoundsError(s, i))
+    end
+    p = pointer(s)
+    b = unsafe_load(p, i)
+    if b < 0x80
+        return Char(b), i + 1
+    end
+    return Base.slow_utf8_next(p, b, i, sizeof(s))
+end
 
-    @inline function Base.next(s::WeakRefString{UInt8}, i::Int)
-        # function is split into this critical fast-path
-        # for pure ascii data, such as parsing numbers,
-        # and a longer function that can handle any utf8 data
-        @boundscheck if (i < 1) | (i > s.len)
-            throw(BoundsError(s, i))
-        end
-        p = pointer(s)
-        b = unsafe_load(p, i)
-        if b < 0x80
-            return Char(b), i + 1
-        end
-        return Base.slow_utf8_next(p, b, i, sizeof(s))
-    end
-else
-    Base.@propagate_inbounds function Base.next(s::String, i::Int)
-        b = Base.codeunit(s, i)
-        u = UInt32(b) << 24
-        Base.between(b, 0x80, 0xf7) || return reinterpret(Char, u), i+1
-        return Base.next_continued(s, i, u)
-    end
+else # 0.7
+
+Base.ncodeunits(s::WeakRefString{T}) where {T} = s.len
+Base.codeunit(s::WeakRefString{T}) where {T} = T
+
+@inline function Base.codeunit(s::WeakRefString, i::Integer)
+    @boundscheck checkbounds(s, i)
+    GC.@preserve s unsafe_load(pointer(s, i))
+end
+
+Base.isvalid(s::WeakRefString, i::Int) = checkbounds(Bool, s, i) && thisind(s, i) == i
+
+Base.@propagate_inbounds function Base.next(s::WeakRefString, i::Int)
+    b = Base.codeunit(s, i)
+    u = UInt32(b) << 24
+    Base.between(b, 0x80, 0xf7) || return reinterpret(Char, u), i+1
+    return Base.next_continued(s, i, u)
+end
+
+function next_continued(s::String, i::Int, u::UInt32)
+    u < 0xc0000000 && (i += 1; @goto ret)
+    n = ncodeunits(s)
+    # first continuation byte
+    (i += 1) > n && @goto ret
+    @inbounds b = codeunit(s, i)
+    b & 0xc0 == 0x80 || @goto ret
+    u |= UInt32(b) << 16
+    # second continuation byte
+    ((i += 1) > n) | (u < 0xe0000000) && @goto ret
+    @inbounds b = codeunit(s, i)
+    b & 0xc0 == 0x80 || @goto ret
+    u |= UInt32(b) << 8
+    # third continuation byte
+    ((i += 1) > n) | (u < 0xf0000000) && @goto ret
+    @inbounds b = codeunit(s, i)
+    b & 0xc0 == 0x80 || @goto ret
+    u |= UInt32(b); i += 1
+@label ret
+    return reinterpret(Char, u), i
+end
+
 end
 ########################################################################
 # WeakRefStringArray
 ########################################################################
 
 init(::Type{T}, rows) where {T} = fill(zero(T), rows)
-if !isdefined(Base, :uninitialized)
-    struct Uninitialized end
-    const uninitialized = Uninitialized()
-    Vector{T}(::Uninitialized, rows) where {T} = Vector{T}(rows)
+if !isdefined(Base, :undef)
+    struct Undef end
+    const undef = Undef()
+    Vector{T}(::Undef, rows) where {T} = Vector{T}(rows)
 end
-init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(uninitialized, rows)
+init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(undef, rows)
 
 """
 A [`WeakRefString`](@ref) container.
@@ -241,7 +273,7 @@ julia> sa = StringArray{Union{Missing, String}}(["x", "y"]) # with Missing
  "x"
  "y"
 
-julia> sa = StringArray{Union{Missing, String}}(2,2) # uninitialized
+julia> sa = StringArray{Union{Missing, String}}(2,2) # undef
 2×2 WeakRefStrings.StringArray{Union{Missings.Missing, String},2}:
  #undef  #undef
  #undef  #undef
