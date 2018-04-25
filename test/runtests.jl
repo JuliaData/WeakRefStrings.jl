@@ -128,4 +128,8 @@ end
         sv[1] = "Dagger"
         @test length(filter(r"JuliaDB", sv)) == 2
     end
+
+    @testset "test WeakRefString element type constructor" begin
+        @test eltype(StringVector{WeakRefString}(1)) <: WeakRefString
+    end
 end
