@@ -25,16 +25,16 @@ The package is tested against Julia `0.6` and nightly on Linux, OS X, and Window
 Contributions are very welcome, as are feature requests and suggestions. Please open an
 [issue][issues-url] if you encounter any problems or would just like to ask a question.
 
-[travis-img]: https://travis-ci.org/quinnj/WeakRefStrings.jl.svg?branch=master
-[travis-url]: https://travis-ci.org/quinnj/WeakRefStrings.jl
+[travis-img]: https://travis-ci.org/JuliaData/WeakRefStrings.jl.svg?branch=master
+[travis-url]: https://travis-ci.org/JuliaData/WeakRefStrings.jl
 
 [appveyor-img]: https://ci.appveyor.com/api/projects/status/h227adt6ovd1u3sx/branch/master?svg=true
-[appveyor-url]: https://ci.appveyor.com/project/quinnj/documenter-jl/branch/master
+[appveyor-url]: https://ci.appveyor.com/project/quinnj/weakrefstrings-jl/branch/master
 
-[codecov-img]: https://codecov.io/gh/quinnj/WeakRefStrings.jl/branch/master/graph/badge.svg
-[codecov-url]: https://codecov.io/gh/quinnj/WeakRefStrings.jl
+[codecov-img]: https://codecov.io/gh/JuliaData/WeakRefStrings.jl/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/JuliaData/WeakRefStrings.jl
 
-[issues-url]: https://github.com/quinnj/WeakRefStrings.jl/issues
+[issues-url]: https://github.com/JuliaData/WeakRefStrings.jl/issues
 
 [pkg-0.6-img]: http://pkg.julialang.org/badges/WeakRefStrings_0.6.svg
 [pkg-0.6-url]: http://pkg.julialang.org/?pkg=WeakRefStrings
