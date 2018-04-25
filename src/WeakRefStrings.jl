@@ -377,6 +377,10 @@ end
     _setindex!(arr, val, idx...)
 end
 
+@inline function Base.setindex!(arr::StringArray, val::STR, idx::Integer)
+    _setindex!(arr, val, idx)
+end
+
 function _setindex!(arr::StringArray, val::AbstractString, idx...)
     buffer = arr.buffer
     l = length(arr.buffer)
@@ -385,6 +389,21 @@ function _setindex!(arr::StringArray, val::AbstractString, idx...)
     arr.lengths[idx...] = sizeof(val)
     arr.offsets[idx...] = l
     val
+end
+
+function _setindex!(arr::StringArray, val::AbstractString, idx)
+    buffer = arr.buffer
+    l = length(arr.buffer)
+    resize!(buffer, l + sizeof(val))
+    unsafe_copy!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
+    arr.lengths[idx] = sizeof(val)
+    arr.offsets[idx] = l
+    val
+end
+
+function _setindex!(arr::StringArray, val::Missing, idx)
+    arr.lengths[idx] = 0
+    arr.offsets[idx] = MISSING_OFFSET
 end
 
 function _setindex!(arr::StringArray, val::Missing, idx...)
