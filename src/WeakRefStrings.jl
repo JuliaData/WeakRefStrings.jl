@@ -449,4 +449,8 @@ function Base.permute!(arr::StringArray{String}, p::AbstractVector)
     arr
 end
 
+function Base.vcat(a::StringVector{T}, b::StringVector{T}) where T
+    StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, b.offsets .+ length(a.buffer)), vcat(a.lengths, b.lengths))
+end
+
 end # module
