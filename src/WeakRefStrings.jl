@@ -227,6 +227,7 @@ function Base.vcat(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) whe
     WeakRefStringArray(Any[a.data, b.data], vcat(a.elements, b.elements))
 end
 
+Base.deleteat!(a::WeakRefStringArray{T, 1}, inds) where {T} = (deleteat!(a.elements, inds); return a)
 
 ########################################################################
 # StringArray

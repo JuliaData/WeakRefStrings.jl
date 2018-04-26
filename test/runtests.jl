@@ -75,6 +75,9 @@ end
     @test D[3] === missing
     D[2] = missing
     @test D[2] === missing
+    deleteat!(D, 1)
+    @test length(D) == 2
+    @test D[1] === missing
 
     E = WeakRefStringArray(data, [str missing])
     @test size(E) == (1, 2)
