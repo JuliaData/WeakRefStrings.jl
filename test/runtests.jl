@@ -142,4 +142,11 @@ end
         @test sv[1] == "JuliaDB"
         @test sv[end] == "TextParse"
     end
+
+    @testset "vcat" begin
+        sv1 = StringVector{String}(convert(Vector{UInt8}, randstring(1024)), UInt64[1:10:1000;], ones(UInt32,100)*9);
+        sv2 = StringVector{String}(convert(Vector{UInt8}, randstring(1024)), UInt64[1:10:1000;], ones(UInt32,100)*9);
+        sv3 = vcat(sv1, sv2)
+        @test length(sv3) == length(sv1) + length(sv2)
+    end
 end
