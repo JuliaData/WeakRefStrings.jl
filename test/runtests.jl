@@ -135,4 +135,11 @@ end
     @testset "test WeakRefString element type constructor" begin
         @test eltype(StringVector{WeakRefString}(1)) <: WeakRefString
     end
+
+    @testset "test permute!" begin
+        sv = StringVector(["TextParse", "TextParse", "JuliaDB", "TextParse", "TextParse", "TextParse", "TextParse", "JuliaDB", "JuliaDB"])
+        permute!(sv, reverse!([1:length(sv);]))
+        @test sv[1] == "JuliaDB"
+        @test sv[end] == "TextParse"
+    end
 end

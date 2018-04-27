@@ -444,4 +444,9 @@ function Base.deleteat!(arr::StringVector, idx::Integer)
     arr
 end
 
+function Base.permute!(arr::StringArray{String}, p::AbstractVector)
+    permute!(convert(StringArray{WeakRefString{UInt8}}, arr), p)
+    arr
+end
+
 end # module
