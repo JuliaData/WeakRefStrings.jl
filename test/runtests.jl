@@ -149,4 +149,15 @@ end
         sv3 = vcat(sv1, sv2)
         @test length(sv3) == length(sv1) + length(sv2)
     end
+
+    @testset "append!" begin
+        sv1 = StringVector{WeakRefString{UInt8}}(["foo", "bar"])
+        sv2 = StringVector{String}(["baz", "qux"])
+
+        append!(sv1, sv2)
+        @test sv1 == ["foo", "bar", "baz", "qux"]
+
+        append!(sv2, ["yep", "nope"])
+        @test sv2 == ["baz", "qux", "yep", "nope"]
+    end
 end

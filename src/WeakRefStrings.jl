@@ -453,4 +453,17 @@ function Base.vcat(a::StringVector{T}, b::StringVector{T}) where T
     StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, b.offsets .+ length(a.buffer)), vcat(a.lengths, b.lengths))
 end
 
+function Base.append!(a::StringVector{T}, b::StringVector) where T
+    append!(a.offsets, b.offsets .+ length(a.buffer))
+    append!(a.buffer, b.buffer)
+    append!(a.lengths, b.lengths)
+    a
+end
+
+function Base.append!(a::StringVector{T}, b::AbstractVector) where T
+    for x in b
+        push!(a, x)
+    end
+end
+
 end # module
