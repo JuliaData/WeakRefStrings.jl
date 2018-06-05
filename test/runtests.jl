@@ -1,4 +1,4 @@
-using WeakRefStrings, Missings, Compat, Compat.Test
+using WeakRefStrings, Missings, Compat, Compat.Test, Compat.Random
 
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
@@ -91,7 +91,7 @@ end
         sa     = split(s, splits)
         svinit = StringVector{WeakRefString{UInt8}}(sa)
         @testset "version" for sv in (copy(svinit),
-                                   copy!(similar(svinit), svinit),
+                                   copyto!(similar(svinit), svinit),
                                    StringVector{WeakRefString{UInt8}}(sa))
             @test sa == sv
             @test sort(sa) == sort(sv)
@@ -129,7 +129,7 @@ end
         sv = StringVector(["TextParse", "TextParse", "JuliaDB", "TextParse", "TextParse", "TextParse", "TextParse", "JuliaDB", "JuliaDB"])
         sv[end] = "Dagger"
         sv[1] = "Dagger"
-        @test length(filter(r"JuliaDB", sv)) == 2
+        @test length(filter(x->occursin(r"JuliaDB", x), sv)) == 2
     end
 
     @testset "test WeakRefString element type constructor" begin
@@ -144,8 +144,8 @@ end
     end
 
     @testset "vcat" begin
-        sv1 = StringVector{String}(convert(Vector{UInt8}, randstring(1024)), UInt64[1:10:1000;], ones(UInt32,100)*9);
-        sv2 = StringVector{String}(convert(Vector{UInt8}, randstring(1024)), UInt64[1:10:1000;], ones(UInt32,100)*9);
+        sv1 = StringVector{String}(unsafe_wrap(Array, pointer(randstring(1024)), 1024), UInt64[1:10:1000;], ones(UInt32,100)*9);
+        sv2 = StringVector{String}(unsafe_wrap(Array, pointer(randstring(1024)), 1024), UInt64[1:10:1000;], ones(UInt32,100)*9);
         sv3 = vcat(sv1, sv2)
         @test length(sv3) == length(sv1) + length(sv2)
     end

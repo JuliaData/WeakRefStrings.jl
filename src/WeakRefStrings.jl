@@ -130,14 +130,15 @@ end
 
 Base.isvalid(s::WeakRefString, i::Int) = checkbounds(Bool, s, i) && thisind(s, i) == i
 
-Base.@propagate_inbounds function Base.next(s::WeakRefString, i::Int)
-    b = Base.codeunit(s, i)
+Base.@propagate_inbounds function Base.iterate(s::WeakRefString, i::Int=firstindex(s))
+    i > ncodeunits(s) && return nothing
+    b = codeunit(s, i)
     u = UInt32(b) << 24
     Base.between(b, 0x80, 0xf7) || return reinterpret(Char, u), i+1
     return Base.next_continued(s, i, u)
 end
 
-function next_continued(s::String, i::Int, u::UInt32)
+function Base.next_continued(s::WeakRefString, i::Int, u::UInt32)
     u < 0xc0000000 && (i += 1; @goto ret)
     n = ncodeunits(s)
     # first continuation byte
@@ -387,7 +388,7 @@ function _setindex!(arr::StringArray, val::AbstractString, idx...)
     buffer = arr.buffer
     l = length(arr.buffer)
     resize!(buffer, l + sizeof(val))
-    unsafe_copy!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
+    unsafe_copyto!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
     arr.lengths[idx...] = sizeof(val)
     arr.offsets[idx...] = l
     val
@@ -397,7 +398,7 @@ function _setindex!(arr::StringArray, val::AbstractString, idx)
     buffer = arr.buffer
     l = length(arr.buffer)
     resize!(buffer, l + sizeof(val))
-    unsafe_copy!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
+    unsafe_copyto!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
     arr.lengths[idx] = sizeof(val)
     arr.offsets[idx] = l
     val
@@ -418,8 +419,8 @@ function Base.resize!(arr::StringVector, len)
     resize!(arr.offsets, len)
     resize!(arr.lengths, len)
     if l < len
-        arr.offsets[l+1:len] = UNDEF_OFFSET # undef
-        arr.lengths[l+1:len] = 0
+        arr.offsets[l+1:len] .= UNDEF_OFFSET # undef
+        arr.lengths[l+1:len] .= 0
     end
     arr
 end
@@ -427,7 +428,7 @@ end
 function Base.push!(arr::StringVector, val::AbstractString)
     l = length(arr.buffer)
     resize!(arr.buffer, l + sizeof(val))
-    unsafe_copy!(pointer(arr.buffer, l + 1), pointer(val,1), sizeof(val))
+    unsafe_copyto!(pointer(arr.buffer, l + 1), pointer(val,1), sizeof(val))
     push!(arr.offsets, l)
     push!(arr.lengths, sizeof(val))
     arr
