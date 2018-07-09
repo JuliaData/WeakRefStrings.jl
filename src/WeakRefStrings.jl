@@ -262,15 +262,15 @@ function Base.convert(::Type{<:StringArray{T}}, x::StringArray{<:STR,N}) where {
     StringArray{T, ndims(x)}(x.buffer, x.offsets, x.lengths)
 end
 
-function (::Type{StringArray{T, N}})(dims::Tuple{Vararg{Integer}}) where {T,N}
+function StringArray{T, N}(dims::Tuple{Vararg{Integer}}) where {T,N}
     StringArray{T,N}(similar(Vector{UInt8}, 0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
 end
 
-function (::Type{StringArray{T}})(dims::Tuple{Vararg{Integer}}) where {T}
+function StringArray{T}(dims::Tuple{Vararg{Integer}}) where {T}
     StringArray{T,length(dims)}(dims)
 end
 
-function (::Type{StringArray})(dims::Tuple{Vararg{Integer}})
+function StringArray(dims::Tuple{Vararg{Integer}})
     StringArray{String}(dims)
 end
 
@@ -291,8 +291,8 @@ function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) wh
 end
 Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = StringArray{T}(arr)
 Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = StringVector{S}(arr)
-(::Type{StringVector{T}})() where {T} = StringVector{T}(Vector{UInt8}(0), UInt64[], UInt32[])
-(::Type{StringVector})() = StringVector{String}()
+StringVector{T}() where {T} = StringVector{T}(Vector{UInt8}(0), UInt64[], UInt32[])
+StringVector() = StringVector{String}()
 
 (T::Type{<:StringArray})(arr::AbstractArray{<:STR}) = convert(T, arr)
 
