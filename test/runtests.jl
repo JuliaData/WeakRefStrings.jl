@@ -1,4 +1,4 @@
-using WeakRefStrings, Missings, Compat, Compat.Test, Compat.Random
+using WeakRefStrings, Missings, Test, Random
 
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
