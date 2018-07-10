@@ -3,7 +3,7 @@ module WeakRefStrings
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
 
-using Missings, Compat
+using Missings
 
 ########################################################################
 # WeakRefString
@@ -62,11 +62,7 @@ function Base.show(io::IO, x::WeakRefString{T}) where {T}
     return
 end
 Base.print(io::IO, s::WeakRefString) = print(io, string(s))
-if isdefined(Base, :textwidth)
-    Base.textwidth(s::WeakRefString) = textwidth(string(s))
-else
-    Base.strwidth(s::WeakRefString) = strwidth(string(s))
-end
+Base.textwidth(s::WeakRefString) = textwidth(string(s))
 
 chompnull(x::WeakRefString{T}) where {T} = unsafe_load(x.ptr, x.len) == T(0) ? x.len - 1 : x.len
 
@@ -89,36 +85,6 @@ function Base.start(s::WeakRefString)
     end
     return 1
 end
-
-@static if VERSION < v"0.7.0-DEV"
-
-Base.sizeof(s::WeakRefString) = s.len
-
-function Base.endof(s::WeakRefString)
-    p = pointer(s)
-    i = sizeof(s)
-    while i > 0 && Base.is_valid_continuation(unsafe_load(p, i))
-        i -= 1
-    end
-    i
-end
-
-@inline function Base.next(s::WeakRefString{UInt8}, i::Int)
-    # function is split into this critical fast-path
-    # for pure ascii data, such as parsing numbers,
-    # and a longer function that can handle any utf8 data
-    @boundscheck if (i < 1) | (i > s.len)
-        throw(BoundsError(s, i))
-    end
-    p = pointer(s)
-    b = unsafe_load(p, i)
-    if b < 0x80
-        return Char(b), i + 1
-    end
-    return Base.slow_utf8_next(p, b, i, sizeof(s))
-end
-
-else # 0.7
 
 Base.ncodeunits(s::WeakRefString{T}) where {T} = s.len
 Base.codeunit(s::WeakRefString{T}) where {T} = T
@@ -160,7 +126,6 @@ function Base.next_continued(s::WeakRefString, i::Int, u::UInt32)
     return reinterpret(Char, u), i
 end
 
-end
 ########################################################################
 # WeakRefStringArray
 ########################################################################
@@ -203,11 +168,6 @@ Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, 
 Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
 Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, I...))
-if VERSION < v"0.7.0-DEV.3673" # Work around incorrect ambiguity error (PR #26)
-    Base.setindex!(A::WeakRefStringArray{T, 1}, v::Missing, i::Int) where {T} = setindex!(A.elements, v, i)
-    Base.setindex!(A::WeakRefStringArray{T, 1}, v::WeakRefString, i::Int) where {T} = setindex!(A.elements, v, i)
-    Base.setindex!(A::WeakRefStringArray{T, 1}, v::String, i::Int) where {T} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
-end
 Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
 
 Base.push!(a::WeakRefStringArray{T, 1}, v::Missing) where {T} = (push!(a.elements, v); a)
