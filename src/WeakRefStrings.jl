@@ -1,4 +1,3 @@
-__precompile__(true)
 module WeakRefStrings
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
@@ -77,14 +76,6 @@ Base.Symbol(x::WeakRefString{UInt8}) = ccall(:jl_symbol_n, Ref{Symbol}, (Ptr{UIn
 
 Base.pointer(s::WeakRefString) = s.ptr
 Base.pointer(s::WeakRefString, i::Integer) = s.ptr + i - 1
-
-# Iteration. Largely indentical to Julia 0.6's String
-function Base.start(s::WeakRefString)
-    if s.ptr == C_NULL
-        throw(ArgumentError("pointer has been zeroed. The zeroing most likely happened because the string was moved from a process to another."))
-    end
-    return 1
-end
 
 Base.ncodeunits(s::WeakRefString{T}) where {T} = s.len
 Base.codeunit(s::WeakRefString{T}) where {T} = T
