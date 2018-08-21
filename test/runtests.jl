@@ -8,6 +8,9 @@ using WeakRefStrings, Missings, Test, Random
     @test str.len == 3
     @test string(str) == "hey"
     @test String(str) == "hey"
+    @test str[1] === 'h'
+    @test str[2] === 'e'
+    @test str[3] === 'y'
 
     io = IOBuffer()
     show(io, str)

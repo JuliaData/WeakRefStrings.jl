@@ -85,6 +85,8 @@ Base.codeunit(s::WeakRefString{T}) where {T} = T
     GC.@preserve s unsafe_load(pointer(s, i))
 end
 
+Base.thisind(s::WeakRefString, i::Int) = Base._thisind_str(s, i)
+Base.nextind(s::WeakRefString, i::Int) = Base._nextind_str(s, i)
 Base.isvalid(s::WeakRefString, i::Int) = checkbounds(Bool, s, i) && thisind(s, i) == i
 
 Base.@propagate_inbounds function Base.iterate(s::WeakRefString, i::Int=firstindex(s))
