@@ -53,7 +53,6 @@ function Base.hash(s::WeakRefString{T}, h::UInt) where {T}
     ccall(Base.memhash, UInt, (Ptr{T}, Csize_t, UInt32), s.ptr, s.len, h % UInt32) + h
 end
 
-Base.show(io::IO, ::Type{WeakRefString{T}}) where {T} = print(io, "WeakRefString{$T}")
 function Base.show(io::IO, x::WeakRefString{T}) where {T}
     print(io, '"')
     print(io, string(x))
