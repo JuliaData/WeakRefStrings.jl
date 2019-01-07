@@ -136,7 +136,7 @@ end
     end
 
     @testset "test WeakRefString element type constructor" begin
-        @test eltype(StringVector{WeakRefString}(1)) <: WeakRefString
+        @test eltype(StringVector{WeakRefString}(undef, 1)) <: WeakRefString
     end
 
     @testset "test permute!" begin
