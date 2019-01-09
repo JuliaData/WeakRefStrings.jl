@@ -254,38 +254,19 @@ function Base.convert(::Type{<:StringArray{T}}, x::StringArray{<:STR,N}) where {
     StringArray{T, ndims(x)}(x.buffer, x.offsets, x.lengths)
 end
 
-# TODO Deprecate
-function StringArray{T, N}(dims::Tuple{Vararg{Integer}}) where {T,N}
-    StringArray{T,N}(similar(Vector{UInt8}, 0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
-end
-
 function StringArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}) where {T,N}
     StringArray{T,N}(similar(Vector{UInt8}, 0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
-end
-
-# TODO Deprecate
-function StringArray{T}(dims::Tuple{Vararg{Integer}}) where {T}
-    StringArray{T,length(dims)}(undef, dims)
 end
 
 function StringArray{T}(::UndefInitializer, dims::Tuple{Vararg{Integer}}) where {T}
     StringArray{T,length(dims)}(undef, dims)
 end
 
-# TODO Deprecate
-function StringArray(dims::Tuple{Vararg{Integer}})
-    StringArray{String}(undef, dims)
-end
-
 function StringArray(::UndefInitializer, dims::Tuple{Vararg{Integer}})
     StringArray{String}(undef, dims)
 end
 
-# TODO Deprecate
-(::Type{S})(dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(dims)
 (::Type{S})(::UndefInitializer, dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(undef, dims)
-# TODO Deprecate
-(::Type{<:StringArray})(dims::Integer...) = StringArray{String,length(dims)}(dims)
 (::Type{<:StringArray})(::UndefInitializer, dims::Integer...) = StringArray{String,length(dims)}(undef, dims)
 
 function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) where {T,N}
@@ -437,5 +418,14 @@ function Base.append!(a::StringVector{T}, b::AbstractVector) where T
         push!(a, x)
     end
 end
+
+# Deprecations
+
+Base.@deprecate StringArray{T, N}(dims::Tuple{Vararg{Integer}}) where {T,N} StringArray{T, N}(undef, dims)
+Base.@deprecate StringArray{T}(dims::Tuple{Vararg{Integer}}) where {T} StringArray{T}(undef, dims)
+Base.@deprecate StringArray(dims::Tuple{Vararg{Integer}}) StringArray(undef, dims)
+# TODO The following two deprecations don't work, but should be there
+# Base.@deprecate (::Type{S})(dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} S(undef, dims)
+# Base.@deprecate (::Type{S})(dims::Integer...) where {S<:StringArray} S(dims...)
 
 end # module
