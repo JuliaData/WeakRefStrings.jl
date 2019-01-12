@@ -424,8 +424,9 @@ end
 Base.@deprecate StringArray{T, N}(dims::Tuple{Vararg{Integer}}) where {T,N} StringArray{T, N}(undef, dims)
 Base.@deprecate StringArray{T}(dims::Tuple{Vararg{Integer}}) where {T} StringArray{T}(undef, dims)
 Base.@deprecate StringArray(dims::Tuple{Vararg{Integer}}) StringArray(undef, dims)
-# TODO The following two deprecations don't work, but should be there
-# Base.@deprecate (::Type{S})(dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} S(undef, dims)
-# Base.@deprecate (::Type{S})(dims::Integer...) where {S<:StringArray} S(dims...)
+# TODO The following two signatures should either also be deprecated or removed
+# eventually.
+(::Type{S})(dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(dims)
+(::Type{<:StringArray})(dims::Integer...) = StringArray{String,length(dims)}(dims)
 
 end # module
