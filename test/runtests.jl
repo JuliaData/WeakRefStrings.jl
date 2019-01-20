@@ -163,4 +163,13 @@ end
         append!(sv2, ["yep", "nope"])
         @test sv2 == ["baz", "qux", "yep", "nope"]
     end
+
+    @testset "constructor" begin
+        sv1 = StringVector(undef, 10)
+        @test eltype(sv1) == String
+        @test size(sv1) == (10,)
+        sv2 = StringVector{WeakRefString}(undef, 10)
+        @test eltype(sv2) == WeakRefString
+        @test size(sv2) == (10,)
+    end
 end

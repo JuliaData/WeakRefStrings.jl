@@ -266,6 +266,7 @@ function StringArray(dims::Tuple{Vararg{Integer}})
     StringArray{String}(dims)
 end
 
+(::Type{S})(::UndefInitializer, args...) where {S<:StringArray} = S(args...)
 (::Type{S})(dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(dims)
 (::Type{<:StringArray})(dims::Integer...) = StringArray{String,length(dims)}(dims)
 
