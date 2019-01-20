@@ -254,23 +254,23 @@ function Base.convert(::Type{<:StringArray{T}}, x::StringArray{<:STR,N}) where {
     StringArray{T, ndims(x)}(x.buffer, x.offsets, x.lengths)
 end
 
-function StringArray{T, N}(dims::Tuple{Vararg{Integer}}) where {T,N}
+function StringArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}) where {T,N}
     StringArray{T,N}(similar(Vector{UInt8}, 0), fill(UNDEF_OFFSET, dims), fill(zero(UInt32), dims))
 end
 
-function StringArray{T}(dims::Tuple{Vararg{Integer}}) where {T}
-    StringArray{T,length(dims)}(dims)
+function StringArray{T}(::UndefInitializer, dims::Tuple{Vararg{Integer}}) where {T}
+    StringArray{T,length(dims)}(undef, dims)
 end
 
-function StringArray(dims::Tuple{Vararg{Integer}})
-    StringArray{String}(dims)
+function StringArray(::UndefInitializer, dims::Tuple{Vararg{Integer}})
+    StringArray{String}(undef, dims)
 end
 
-(::Type{S})(dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(dims)
-(::Type{<:StringArray})(dims::Integer...) = StringArray{String,length(dims)}(dims)
+(::Type{S})(::UndefInitializer, dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(undef, dims)
+(::Type{<:StringArray})(::UndefInitializer, dims::Integer...) = StringArray{String,length(dims)}(undef, dims)
 
 function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) where {T,N}
-    s = StringArray{T, N}(size(arr))
+    s = StringArray{T, N}(undef, size(arr))
     @inbounds for i in eachindex(arr)
         if _isassigned(arr, i)
             s[i] = arr[i]
@@ -304,7 +304,7 @@ _isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)
 end
 
 function Base.similar(a::StringArray, T::Type{<:STR}, dims::Tuple{Vararg{Int64, N}}) where N
-    StringArray{T, N}(dims)
+    StringArray{T, N}(undef, dims)
 end
 
 function Base.empty!(a::StringVector)
@@ -418,5 +418,15 @@ function Base.append!(a::StringVector{T}, b::AbstractVector) where T
         push!(a, x)
     end
 end
+
+# Deprecations
+
+Base.@deprecate StringArray{T, N}(dims::Tuple{Vararg{Integer}}) where {T,N} StringArray{T, N}(undef, dims)
+Base.@deprecate StringArray{T}(dims::Tuple{Vararg{Integer}}) where {T} StringArray{T}(undef, dims)
+Base.@deprecate StringArray(dims::Tuple{Vararg{Integer}}) StringArray(undef, dims)
+# TODO The following two signatures should either also be deprecated or removed
+# eventually.
+(::Type{S})(dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(dims)
+(::Type{<:StringArray})(dims::Integer...) = StringArray{String,length(dims)}(dims)
 
 end # module
