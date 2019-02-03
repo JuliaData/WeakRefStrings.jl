@@ -427,5 +427,6 @@ Base.@deprecate StringArray(dims::Tuple{Vararg{Integer}}) StringArray(undef, dim
 Base.@deprecate StringArray{T, N}(dims::Integer...) where {T,N} StringArray{T, N}(undef, dims...)
 Base.@deprecate StringArray{T}(dims::Integer...) where {T} StringArray{T}(undef, dims...)
 Base.@deprecate StringArray(dims::Integer...) StringArray(undef, dims...)
+Base.@deprecate StringVector(dims::Int) StringVector(undef, dims)
 
 end # module
