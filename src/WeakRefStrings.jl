@@ -96,7 +96,13 @@ Base.@propagate_inbounds function Base.iterate(s::WeakRefString, i::Int=firstind
     return Base.next_continued(s, i, u)
 end
 
-function Base.next_continued(s::WeakRefString, i::Int, u::UInt32)
+if isdefined(Base, :next_continued)
+    const iterate_continued = Base.next_continued
+else
+    const iterate_continued = Base.iterate_continued
+end
+
+function iterate_continued(s::WeakRefString, i::Int, u::UInt32)
     u < 0xc0000000 && (i += 1; @goto ret)
     n = ncodeunits(s)
     # first continuation byte
