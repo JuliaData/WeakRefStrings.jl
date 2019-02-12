@@ -48,6 +48,13 @@ function ==(x::String, y::WeakRefString{T}) where {T}
 end
 ==(y::WeakRefString, x::String) = x == y
 
+function Base.cmp(a::WeakRefString{T}, b::WeakRefString{T}) where T
+    al, bl = a.len, b.len
+    c = ccall(:memcmp, Int32, (Ptr{T}, Ptr{T}, Csize_t),
+              a.ptr, b.ptr, min(al,bl))
+    return c < 0 ? -1 : c > 0 ? +1 : cmp(al,bl)
+end
+
 function Base.hash(s::WeakRefString{T}, h::UInt) where {T}
     h += Base.memhash_seed
     ccall(Base.memhash, UInt, (Ptr{T}, Csize_t, UInt32), s.ptr, s.len, h % UInt32) + h
