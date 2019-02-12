@@ -95,9 +95,12 @@ end
         svinit = StringVector{WeakRefString{UInt8}}(sa)
         @testset "version" for sv in (copy(svinit),
                                    copyto!(similar(svinit), svinit),
+                                   convert(StringVector{String}, sa),
                                    StringVector{WeakRefString{UInt8}}(sa))
             @test sa == sv
             @test sort(sa) == sort(sv)
+            @test sortperm(sa) == sortperm(sv)
+            @test sort!(copy(sa)) == sort(sv)
             @test copy(sv) == sv
 
             @testset "setindex with WeakRefString" begin
