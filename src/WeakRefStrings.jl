@@ -279,8 +279,9 @@ function StringArray(::UndefInitializer, dims::Tuple{Vararg{Integer}})
     StringArray{String}(undef, dims)
 end
 
-(::Type{S})(::UndefInitializer, dims::Vararg{Integer,N}) where {S<:StringArray{T,N}} where {T,N} = StringArray{T,N}(undef, dims)
-(::Type{<:StringArray})(::UndefInitializer, dims::Integer...) = StringArray{String,length(dims)}(undef, dims)
+StringArray{T, N}(::UndefInitializer, dims::Vararg{Integer,N}) where {T,N} = StringArray{T,N}(undef, dims)
+StringArray{T}(::UndefInitializer, dims::Integer...) where {T} = StringArray{T,length(dims)}(undef, dims)
+StringArray(::UndefInitializer, dims::Integer...) = StringArray{String,length(dims)}(undef, dims)
 
 function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) where {T,N}
     s = StringArray{T, N}(undef, size(arr))
