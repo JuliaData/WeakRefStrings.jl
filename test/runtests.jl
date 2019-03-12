@@ -142,6 +142,23 @@ end
         @test eltype(StringVector{WeakRefString}(undef, 1)) <: WeakRefString
     end
 
+    @testset "StringVector constructors" begin
+        @test length(StringVector()) == 0
+        @test length(StringVector{WeakRefString{UInt8}}()) == 0
+        a = StringVector{WeakRefString{UInt8}}(undef, 10)
+        @test length(a) == 10
+        a = StringVector(undef, 10)
+        @test length(a) == 10
+        data = Vector{UInt8}("hey there sailor")
+        a = StringVector{String}(data, 3)
+        a[1] = WeakRefString(pointer(data), 3)
+        a[2] = WeakRefString(pointer(data), 3)
+        a[3] = WeakRefString(pointer(data), 3)
+        @test length(a) == 3
+        @test a[1] == "hey"
+        @test length(a.buffer) == 16
+    end
+
     @testset "test permute!" begin
         sv = StringVector(["TextParse", "TextParse", "JuliaDB", "TextParse", "TextParse", "TextParse", "TextParse", "JuliaDB", "JuliaDB"])
         permute!(sv, reverse!([1:length(sv);]))
