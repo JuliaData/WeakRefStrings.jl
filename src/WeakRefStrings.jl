@@ -21,7 +21,7 @@ Internally, a `WeakRefString{T}` holds:
   * `ptr::Ptr{T}`: a pointer to the string data (code unit size is parameterized on `T`)
   * `len::Int`: the number of code units in the string data
 
-See also [`WeakRefStringArray`](@ref)
+See also [`StringArray`](@ref)
 """
 struct WeakRefString{T} <: AbstractString
     ptr::Ptr{T}
@@ -299,6 +299,8 @@ Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = String
 Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = StringVector{S}(arr)
 StringVector{T}() where {T} = StringVector{T}(Vector{UInt8}(0), UInt64[], UInt32[])
 StringVector() = StringVector{String}()
+StringVector{T}(::UndefInitializer, len::Int) where {T} = StringArray{T}(undef, len)
+StringVector(::UndefInitializer, len::Int) = StringArray{String}(undef, len)
 
 (T::Type{<:StringArray})(arr::AbstractArray{<:STR}) = convert(T, arr)
 
