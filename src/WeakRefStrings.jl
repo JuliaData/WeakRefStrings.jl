@@ -100,7 +100,7 @@ Base.@propagate_inbounds function Base.iterate(s::WeakRefString, i::Int=firstind
     b = codeunit(s, i)
     u = UInt32(b) << 24
     Base.between(b, 0x80, 0xf7) || return reinterpret(Char, u), i+1
-    return Base.next_continued(s, i, u)
+    return iterate_continued(s, i, u)
 end
 
 if isdefined(Base, :next_continued)
