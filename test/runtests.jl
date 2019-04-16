@@ -1,4 +1,4 @@
-using WeakRefStrings, Missings, Test, Random
+using WeakRefStrings, Test, Random
 
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
