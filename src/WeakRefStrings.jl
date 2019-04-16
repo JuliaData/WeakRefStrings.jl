@@ -2,8 +2,6 @@ module WeakRefStrings
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
 
-using Missings
-
 ########################################################################
 # WeakRefString
 ########################################################################
