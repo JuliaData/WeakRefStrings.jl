@@ -183,4 +183,21 @@ end
         append!(sv2, ["yep", "nope"])
         @test sv2 == ["baz", "qux", "yep", "nope"]
     end
+
+    @testset "QuotedString" begin
+        sv = StringVector(["\"Text\\\"inner quote\\\"Parse\"", "JuliaDB"])
+        @test sv[1] == "\"Text\\\"inner quote\\\"Parse\""
+
+        sv = StringVector{QuotedString{UInt8('"'), UInt8('"'), UInt8('\\')}}(["\"Text\\\"inner quote\\\"Parse\"", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse"
+
+        sv = StringVector{QuotedString{UInt8('{'), UInt8('}'), UInt8('\\')}}(["{Text\\\"inner quote\\\"Parse}", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse"
+
+        sv = StringVector{QuotedString{UInt8('"'), UInt8('"'), UInt8('"')}}(["\"Text\"\"inner quote\"\"Parse\"", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse"
+
+        sv = StringVector{QuotedString{UInt8('"'), UInt8('"'), UInt8('"')}}(["\"Text\"\"inner quote\"\"Parse\"\"", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse\""
+    end
 end
