@@ -199,5 +199,11 @@ end
 
         sv = StringVector{QuotedString{UInt8('"'), UInt8('"'), UInt8('"')}}(["\"Text\"\"inner quote\"\"Parse\"\"", "JuliaDB"])
         @test sv[1] == "Text\"inner quote\"Parse\""
+
+        sv = StringVector{QuotedString{UInt8('"'), UInt8('"'), UInt8('"')}}(["  \"Text\"\"inner quote\"\"Parse\"\"", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse\""
+
+        sv = StringVector{QuotedString{UInt8('"'), UInt8('"'), UInt8('"')}}(["\"Text\"\"inner quote\"\"Parse\"\"\t\t", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse\""
     end
 end

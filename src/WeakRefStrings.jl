@@ -459,15 +459,23 @@ export QuotedString
 
 function Base.convert(::Type{QuotedString{OQ, CQ, E}}, s::WeakRefString) where {OQ, CQ, E}
     n = ncodeunits(s)
-    if codeunit(s, 1) == OQ && codeunit(s, n) == CQ
+    a = 1
+    z = n
+    while codeunit(s, a) == UInt8(' ') || codeunit(s, a) == UInt8('\t')
+        a += 1
+    end
+    while codeunit(s, z) == UInt8(' ') || codeunit(s, z) == UInt8('\t')
+        z -= 1
+    end
+    if codeunit(s, a) == OQ && codeunit(s, z) == CQ
         # string is quoted
-        buf = Base.StringVector(n)
+        buf = Base.StringVector(z - a)
         len = 0
         same = CQ === E
-        i = 2
+        i = a + 1
         @inbounds begin
             b = codeunit(s, i)
-            while i < n
+            while i < z
                 b = codeunit(s, i)
                 if b !== E
                     len += 1
