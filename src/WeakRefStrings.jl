@@ -208,9 +208,9 @@ Efficient storage for N dimensional array of strings.
 in a single contiguous buffer. It maintains offset and length for each
 element.
 
-`T` can be `String`, `WeakRefString`, `QuotedString`, `Union{Missing, String}`,
-`Union{Missing, WeakRefString}`, or `Union{Missing, QuotedString}`.
-`getindex` will return this type except `QuotedString` returns the
+`T` can be `String`, `WeakRefString`, `EscapedString`, `Union{Missing, String}`,
+`Union{Missing, WeakRefString}`, or `Union{Missing, EscapedString}`.
+`getindex` will return this type except `EscapedString` returns the
 unescaped `String`.
 
 You can use `convert(StringArray{U}, ::StringArray{T})` to change the
@@ -446,57 +446,39 @@ function Base.append!(a::StringVector{T}, b::AbstractVector) where T
 end
 
 ########################################################################
-# QuotedString
+# EscapedString
 ########################################################################
 
 """
     Singleton type to signal that a StringArray should unescape a string when indexing. Only used as the element type of a StringArray.
-    The `OQ` and `CQ` parameters are the open and close quote characters to be used when escaping. `E` is the escape character.
+    The `E` type parameter is the escape character.
 """
-struct QuotedString{OQ, CQ, E} <: AbstractString end
+struct EscapedString{E} <: AbstractString end
 
-export QuotedString
+export EscapedString
 
-function Base.convert(::Type{QuotedString{OQ, CQ, E}}, s::WeakRefString) where {OQ, CQ, E}
+function Base.convert(::Type{EscapedString{E}}, s::WeakRefString) where {E}
     n = ncodeunits(s)
-    a = 1
-    z = n
-    while codeunit(s, a) == UInt8(' ') || codeunit(s, a) == UInt8('\t')
-        a += 1
-    end
-    while codeunit(s, z) == UInt8(' ') || codeunit(s, z) == UInt8('\t')
-        z -= 1
-    end
-    if codeunit(s, a) == OQ && codeunit(s, z) == CQ
-        # string is quoted
-        buf = Base.StringVector(z - a)
-        len = 0
-        same = CQ === E
-        i = a + 1
-        @inbounds begin
+    buf = Base.StringVector(n)
+    len = 1
+    i = 1
+    @inbounds begin
+        while i <= n
             b = codeunit(s, i)
-            while i < z
-                b = codeunit(s, i)
-                if b !== E
-                    len += 1
-                    buf[len] = b
-                elseif same
-                    len += 1
-                    buf[len] = b
-                    i += 1
-                end
+            if b == E
                 i += 1
+                b = codeunit(s, i)
             end
+            @inbounds buf[len] = b
+            len += 1
+            i += 1
         end
-        resize!(buf, len)
-        return String(buf)
-    else
-        # string isn't quoted
-        return unsafe_string(s.ptr, s.len)
     end
+    resize!(buf, len - 1)
+    return String(buf)
 end
 
-Base.eltype(a::StringVector{<:QuotedString}) = String
+Base.eltype(a::StringVector{<:EscapedString}) = String
 
 # Deprecations
 
