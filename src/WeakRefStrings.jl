@@ -2,8 +2,6 @@ module WeakRefStrings
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
 
-using Missings
-
 ########################################################################
 # WeakRefString
 ########################################################################
@@ -210,9 +208,10 @@ Efficient storage for N dimensional array of strings.
 in a single contiguous buffer. It maintains offset and length for each
 element.
 
-`T` can be `String`, `WeakRefString`, `Union{Missing, String}` or
-`Union{Missing, WeakRefString}`. `getindex` will return this type although
-all variants have the same storage format.
+`T` can be `String`, `WeakRefString`, `EscapedString`, `Union{Missing, String}`,
+`Union{Missing, WeakRefString}`, or `Union{Missing, EscapedString}`.
+`getindex` will return this type except `EscapedString` returns the
+unescaped `String`.
 
 You can use `convert(StringArray{U}, ::StringArray{T})` to change the
 element type (e.g. to `WeakRefString` for efficiency) without copying
@@ -232,12 +231,12 @@ julia> sa = StringArray{WeakRefString}(["x", "y"])
  "y"
 
 julia> sa = StringArray{Union{Missing, String}}(["x", "y"]) # with Missing
-2-element WeakRefStrings.StringArray{Union{Missings.Missing, String},1}:
+2-element WeakRefStrings.StringArray{Union{Missing, String},1}:
  "x"
  "y"
 
 julia> sa = StringArray{Union{Missing, String}}(2,2) # undef
-2×2 WeakRefStrings.StringArray{Union{Missings.Missing, String},2}:
+2×2 WeakRefStrings.StringArray{Union{Missing, String},2}:
  #undef  #undef
  #undef  #undef
 ```
@@ -445,6 +444,41 @@ function Base.append!(a::StringVector{T}, b::AbstractVector) where T
         push!(a, x)
     end
 end
+
+########################################################################
+# EscapedString
+########################################################################
+
+"""
+    Singleton type to signal that a StringArray should unescape a string when indexing. Only used as the element type of a StringArray.
+    The `E` type parameter is the escape character.
+"""
+struct EscapedString{E} <: AbstractString end
+
+export EscapedString
+
+function Base.convert(::Type{EscapedString{E}}, s::WeakRefString) where {E}
+    n = ncodeunits(s)
+    buf = Base.StringVector(n)
+    len = 1
+    i = 1
+    @inbounds begin
+        while i <= n
+            b = codeunit(s, i)
+            if b == E
+                i += 1
+                b = codeunit(s, i)
+            end
+            @inbounds buf[len] = b
+            len += 1
+            i += 1
+        end
+    end
+    resize!(buf, len - 1)
+    return String(buf)
+end
+
+Base.eltype(a::StringVector{<:EscapedString}) = String
 
 # Deprecations
 

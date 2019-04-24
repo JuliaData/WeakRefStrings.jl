@@ -1,4 +1,4 @@
-using WeakRefStrings, Missings, Test, Random
+using WeakRefStrings, Test, Random
 
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
@@ -182,5 +182,16 @@ end
 
         append!(sv2, ["yep", "nope"])
         @test sv2 == ["baz", "qux", "yep", "nope"]
+    end
+
+    @testset "EscapedString" begin
+        sv = StringVector(["\"Text\\\"inner quote\\\"Parse\"", "JuliaDB"])
+        @test sv[1] == "\"Text\\\"inner quote\\\"Parse\""
+
+        sv = StringVector{EscapedString{UInt8('\\')}}(["Text\\\"inner quote\\\"Parse", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse"
+
+        sv = StringVector{EscapedString{UInt8('"')}}(["Text\"\"inner quote\"\"Parse", "JuliaDB"])
+        @test sv[1] == "Text\"inner quote\"Parse"
     end
 end
