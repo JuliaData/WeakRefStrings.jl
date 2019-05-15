@@ -408,7 +408,7 @@ function Base.push!(arr::StringVector, val::Missing)
     push!(arr.lengths, 0)
 end
 
-function Base.deleteat!(arr::StringVector, idx::Integer)
+function Base.deleteat!(arr::StringVector, idx)
     deleteat!(arr.lengths, idx)
     deleteat!(arr.offsets, idx)
     arr
