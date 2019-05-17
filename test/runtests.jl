@@ -194,4 +194,16 @@ end
         sv = StringVector{EscapedString{UInt8('"')}}(["Text\"\"inner quote\"\"Parse", "JuliaDB"])
         @test sv[1] == "Text\"inner quote\"Parse"
     end
+
+    @testset "deleteat!" begin
+        sv1 = StringVector{WeakRefString{UInt8}}(["foo", "bar"])
+        @test deleteat!(copy(sv1), 1) == ["bar"]
+        @test deleteat!(copy(sv1), [1,2]) == []
+        @test deleteat!(copy(sv1), 1:2) == []
+
+        sv2 = StringVector{String}(["baz", "qux"])
+        @test deleteat!(copy(sv2), 1) == ["qux"]
+        @test deleteat!(copy(sv2), [1,2]) == []
+        @test deleteat!(copy(sv2), 1:2) == []
+    end
 end
