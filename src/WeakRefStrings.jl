@@ -130,70 +130,6 @@ function iterate_continued(s::WeakRefString, i::Int, u::UInt32)
 end
 
 ########################################################################
-# WeakRefStringArray
-########################################################################
-
-init(::Type{T}, rows) where {T} = fill(zero(T), rows)
-init(::Type{Union{Missing, T}}, rows) where {T} = Vector{Union{Missing, T}}(undef, rows)
-
-"""
-A [`WeakRefString`](@ref) container.
-Holds the "strong" references to the data pointed by its strings, ensuring that
-the referenced memory blocks stay valid during `WeakRefStringArray` lifetime.
-
-Upon indexing an elemnt in a `WeakRefStringArray`, the underlying `WeakRefString` is converted to a proper
-Julia `String` type by copying the memory; this ensures safe string processing in the general case. If additional
-optimizations are desired, the direct `WeakRefString` elements can be accessed by indexing `A.elements`, where
-`A` is a `WeakRefStringArray`.
-"""
-struct WeakRefStringArray{T<:WeakRefString, N, U} <: AbstractArray{Union{String, U}, N}
-    data::Vector{Any}
-    elements::Array{Union{T, U}, N}
-
-    WeakRefStringArray(data::Vector{Any}, A::Array{Union{T, Missing}, N}) where {T <: WeakRefString, N} =
-        new{T, N, Missing}(data, A)
-    WeakRefStringArray(data::Vector{Any}, A::Array{T, N}) where {T <: WeakRefString, N} =
-        new{T, N, Union{}}(data, A)
-end
-
-WeakRefStringArray(data, ::Type{T}, rows::Integer) where {T} = WeakRefStringArray(Any[data], init(T, rows))
-WeakRefStringArray(data, A::Array{T}) where {T <: Union{WeakRefString, Missing}} = WeakRefStringArray(Any[data], A)
-
-wk(A, B::AbstractArray) = WeakRefStringArray(A.data, B)
-wk(A, w::WeakRefString) = string(w)
-wk(A, ::Missing) = missing
-
-Base.size(A::WeakRefStringArray) = size(A.elements)
-Base.getindex(A::WeakRefStringArray, I...) = wk(A, getindex(A.elements, I...))
-Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, i::Int) where {T, N} = setindex!(A.elements, v, i)
-Base.setindex!(A::WeakRefStringArray{T, N}, v::Missing, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
-Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, i::Int) where {T, N} = setindex!(A.elements, v, i)
-Base.setindex!(A::WeakRefStringArray{T, N}, v::WeakRefString, I::Vararg{Int, N}) where {T, N} = setindex!(A.elements, v, I...)
-Base.setindex!(A::WeakRefStringArray{T, N}, v::String, i::Int) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, i))
-Base.setindex!(A::WeakRefStringArray{T, N}, v::String, I::Vararg{Int, N}) where {T, N} = (push!(A.data, codeunits(v)); setindex!(A.elements, v, I...))
-Base.resize!(A::WeakRefStringArray, i) = resize!(A.elements, i)
-
-Base.push!(a::WeakRefStringArray{T, 1}, v::Missing) where {T} = (push!(a.elements, v); a)
-Base.push!(a::WeakRefStringArray{T, 1}, v::WeakRefString) where {T} = (push!(a.elements, v); a)
-function Base.push!(A::WeakRefStringArray{T, 1}, v::String) where T
-    push!(A.data, codeunits(v))
-    push!(A.elements, v)
-    return A
-end
-
-function Base.append!(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) where {T}
-    append!(a.data, b.data)
-    append!(a.elements, b.elements)
-    return a
-end
-
-function Base.vcat(a::WeakRefStringArray{T, 1}, b::WeakRefStringArray{T, 1}) where T
-    WeakRefStringArray(Any[a.data, b.data], vcat(a.elements, b.elements))
-end
-
-Base.deleteat!(a::WeakRefStringArray{T, 1}, inds) where {T} = (deleteat!(a.elements, inds); return a)
-
-########################################################################
 # StringArray
 ########################################################################
 
@@ -444,50 +380,5 @@ function Base.append!(a::StringVector{T}, b::AbstractVector) where T
         push!(a, x)
     end
 end
-
-########################################################################
-# EscapedString
-########################################################################
-
-"""
-    Singleton type to signal that a StringArray should unescape a string when indexing. Only used as the element type of a StringArray.
-    The `E` type parameter is the escape character.
-"""
-struct EscapedString{E} <: AbstractString end
-
-export EscapedString
-
-function Base.convert(::Type{EscapedString{E}}, s::WeakRefString) where {E}
-    n = ncodeunits(s)
-    buf = Base.StringVector(n)
-    len = 1
-    i = 1
-    @inbounds begin
-        while i <= n
-            b = codeunit(s, i)
-            if b == E
-                i += 1
-                b = codeunit(s, i)
-            end
-            @inbounds buf[len] = b
-            len += 1
-            i += 1
-        end
-    end
-    resize!(buf, len - 1)
-    return String(buf)
-end
-
-Base.eltype(a::StringVector{<:EscapedString}) = String
-
-# Deprecations
-
-Base.@deprecate StringArray{T, N}(dims::Tuple{Vararg{Integer}}) where {T,N} StringArray{T, N}(undef, dims)
-Base.@deprecate StringArray{T}(dims::Tuple{Vararg{Integer}}) where {T} StringArray{T}(undef, dims)
-Base.@deprecate StringArray(dims::Tuple{Vararg{Integer}}) StringArray(undef, dims)
-Base.@deprecate StringArray{T, N}(dims::Integer...) where {T,N} StringArray{T, N}(undef, dims...)
-Base.@deprecate StringArray{T}(dims::Integer...) where {T} StringArray{T}(undef, dims...)
-Base.@deprecate StringArray(dims::Integer...) StringArray(undef, dims...)
-Base.@deprecate StringVector(dims::Int) StringVector(undef, dims)
 
 end # module

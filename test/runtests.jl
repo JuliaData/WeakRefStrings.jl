@@ -40,54 +40,6 @@ end
     @test str.len == 4
 end
 
-@testset "WeakRefArray" begin
-    data = codeunits("hey there sailor")
-    str = WeakRefStrings.WeakRefString(pointer(data), 3)
-    C = WeakRefStringArray(data, [str])
-    @test length(C) == 1
-    @test eltype(C) === String
-
-    A = WeakRefStringArray(UInt8[], WeakRefStrings.WeakRefString{UInt8}, 10)
-    @test size(A) == (10,)
-    @test A[1] == ""
-    @test A[1, 1] == ""
-    A[1] = "hey"
-    A[1, 1] = "hey"
-    @test A[1] == "hey"
-    resize!(A, 5)
-    @test size(A) == (5,)
-    push!(A, str)
-    @test size(A) == (6,)
-    @test A[end] == str
-    push!(A, "hi")
-    @test length(A) == 7
-    @test A[end] == convert(WeakRefStrings.WeakRefString{UInt8}, "hi")
-
-    B = WeakRefStringArray(UInt8[], WeakRefStrings.WeakRefString{UInt8}, 10)
-    B[1] = "ho"
-    append!(A, B)
-    @test size(A) == (17,)
-
-    D = WeakRefStringArray(UInt8[], Union{Missing, WeakRefStrings.WeakRefString{UInt8}}, 0)
-    push!(D, "hey")
-    push!(D, str)
-    push!(D, missing)
-    @test length(D) == 3
-    @test eltype(D) == Union{Missing, String}
-    @test D[2] == str
-    @test D[3] === missing
-    D[2] = missing
-    @test D[2] === missing
-    deleteat!(D, 1)
-    @test length(D) == 2
-    @test D[1] === missing
-
-    E = WeakRefStringArray(data, [str missing])
-    @test size(E) == (1, 2)
-    @test eltype(E) === Union{String, Missing}
-
-end
-
 @testset "StringVector" begin
     s = "Julia is a name without special letters such as æ, ø, and å. Such letters require more than a single byte when encoded in UTF8"
     @testset "split on $splits" for splits in (['.'], [',', '.', ' '])
@@ -182,17 +134,6 @@ end
 
         append!(sv2, ["yep", "nope"])
         @test sv2 == ["baz", "qux", "yep", "nope"]
-    end
-
-    @testset "EscapedString" begin
-        sv = StringVector(["\"Text\\\"inner quote\\\"Parse\"", "JuliaDB"])
-        @test sv[1] == "\"Text\\\"inner quote\\\"Parse\""
-
-        sv = StringVector{EscapedString{UInt8('\\')}}(["Text\\\"inner quote\\\"Parse", "JuliaDB"])
-        @test sv[1] == "Text\"inner quote\"Parse"
-
-        sv = StringVector{EscapedString{UInt8('"')}}(["Text\"\"inner quote\"\"Parse", "JuliaDB"])
-        @test sv[1] == "Text\"inner quote\"Parse"
     end
 
     @testset "deleteat!" begin
