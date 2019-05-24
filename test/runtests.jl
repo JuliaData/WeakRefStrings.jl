@@ -73,6 +73,14 @@ end
                 @test sa == sv
             end
 
+            @testset "setindex with missing" begin
+                sv1 = StringVector{String}(["foo", "bar"])
+                @test_throws MethodError setindex!(sv1, missing, 1)
+                sv1 = StringVector{Union{String, Missing}}(["foo", "bar"])
+                sv1[1] = missing
+                @test sv1[1] === missing
+            end
+
             push!(sv, "🍕") == push!(copy(sa), "🍕")
             @test length(empty!(sv)) == 0
         end
@@ -147,4 +155,74 @@ end
         @test deleteat!(copy(sv2), [1,2]) == []
         @test deleteat!(copy(sv2), 1:2) == []
     end
+
+    @testset "resize!" begin
+        sv1 = StringVector{WeakRefString{UInt8}}(["foo", "bar"])
+        resize!(sv1, 0)
+        @test length(sv1) == 0
+        resize!(sv1, 10)
+        @test length(sv1) == 10
+    end
+
+    @testset "push!" begin
+        sv1 = StringVector{String}(["foo", "bar"])
+        push!(sv1, "hey")
+        @test length(sv1) == 3
+        @test sv1[end] == "hey"
+        @test_throws MethodError push!(sv1, missing)
+        sv1 = StringVector{Union{String, Missing}}(["foo", "bar"])
+        push!(sv1, missing)
+        @test length(sv1) == 3
+        @test sv1[end] === missing
+    end
+
+    @testset "insert!" begin
+        sv1 = StringVector{String}(["foo", "bar"])
+        insert!(sv1, 2, "hey")
+        @test length(sv1) == 3
+        @test sv1[2] == "hey"
+        @test sv1[3] == "bar"
+        @test_throws MethodError insert!(sv1, 2, missing)
+        sv1 = StringVector{Union{String, Missing}}(["foo", "bar"])
+        insert!(sv1, 2, missing)
+        @test sv1[2] === missing
+        @test length(sv1) == 3
+    end
+
+    @testset "splice!" begin
+        sv1 = StringVector{String}(["foo", "bar"])
+        v = splice!(sv1, 2)
+        @test v == "bar"
+        @test length(sv1) == 1
+        push!(sv1, "bar")
+        v = splice!(sv1, 1:2)
+        @test v[1] == "foo"
+        @test v[2] == "bar"
+        @test length(sv1) == 0
+        sv1 = StringVector{String}(["foo", "bar"])
+        v = splice!(sv1, 1:2, ["bar", "foo"])
+        @test sv1 == reverse(v)
+        sv1 = StringVector{String}(["foo", "bar"])
+        v = splice!(sv1, 2, ["foo", "foo", "bar"])
+        @test length(sv1) == 4
+        @test sv1[end] == "bar"
+    end
+
+    @testset "prepend!/pushfirst!/pop!/popfirst!" begin
+        sv1 = StringVector{String}(["foo", "bar"])
+        prepend!(sv1, ["hey", "there"])
+        @test length(sv1) == 4
+        @test sv1[1] == "hey"
+        @test sv1[2] == "there"
+        pushfirst!(sv1, "sailor")
+        @test length(sv1) == 5
+        @test sv1[1] == "sailor"
+        v = popfirst!(sv1)
+        @test v == "sailor"
+        @test length(sv1) == 4
+        v = pop!(sv1)
+        @test v == "bar"
+        @test length(sv1) == 3
+    end
+
 end

@@ -264,6 +264,7 @@ function Base.empty!(a::StringVector)
     empty!(a.buffer)
     empty!(a.offsets)
     empty!(a.lengths)
+    a
 end
 
 Base.copy(a::StringArray{T, N}) where {T,N} = StringArray{T, N}(copy(a.buffer), copy(a.offsets), copy(a.lengths))
@@ -276,6 +277,7 @@ Base.copy(a::StringArray{T, N}) where {T,N} = StringArray{T, N}(copy(a.buffer), 
         # this optimization helps `permute!`
         arr.offsets[idx...] = val.ptr - p
         arr.lengths[idx...] = val.len
+        val
     else
         _setindex!(arr, val, idx...)
     end
@@ -309,14 +311,16 @@ function _setindex!(arr::StringArray, val::AbstractString, idx)
     val
 end
 
-function _setindex!(arr::StringArray, val::Missing, idx)
+function _setindex!(arr::StringArray{Union{T, Missing}, N}, val::Missing, idx) where {T, N}
     arr.lengths[idx] = 0
     arr.offsets[idx] = MISSING_OFFSET
+    val
 end
 
-function _setindex!(arr::StringArray, val::Missing, idx...)
+function _setindex!(arr::StringArray{Union{T, Missing}, N}, val::Missing, idx...) where {T, N}
     arr.lengths[idx...] = 0
     arr.offsets[idx...] = MISSING_OFFSET
+    val
 end
 
 function Base.resize!(arr::StringVector, len)
@@ -339,14 +343,30 @@ function Base.push!(arr::StringVector, val::AbstractString)
     arr
 end
 
-function Base.push!(arr::StringVector, val::Missing)
+function Base.push!(arr::StringVector{Union{T, Missing}}, val::Missing) where {T}
     push!(arr.offsets, MISSING_OFFSET)
     push!(arr.lengths, 0)
+    arr
 end
 
 function Base.deleteat!(arr::StringVector, idx)
     deleteat!(arr.lengths, idx)
     deleteat!(arr.offsets, idx)
+    arr
+end
+
+function Base.insert!(arr::StringVector, idx::Integer, item::AbstractString)
+    l = length(arr.buffer)
+    resize!(arr.buffer, l + sizeof(item))
+    unsafe_copyto!(pointer(arr.buffer, l + 1), pointer(item), sizeof(item))
+    insert!(arr.offsets, idx, l)
+    insert!(arr.lengths, idx, sizeof(item))
+    arr
+end
+
+function Base.insert!(arr::StringVector{Union{T, Missing}}, idx::Integer, item::Missing) where {T}
+    insert!(arr.offsets, idx, MISSING_OFFSET)
+    insert!(arr.lengths, idx, 0)
     arr
 end
 
@@ -379,6 +399,132 @@ function Base.append!(a::StringVector{T}, b::AbstractVector) where T
     for x in b
         push!(a, x)
     end
+    a
+end
+
+function _growat!(a::StringVector, i, len)
+    Base._growat!(a.offsets, i, len)
+    Base._growat!(a.lengths, i, len)
+    return
+end
+
+function _deleteat!(a::StringVector, i, len)
+    Base._deleteat!(a.offsets, i, len)
+    Base._deleteat!(a.lengths, i, len)
+    return
+end
+
+const _default_splice = []
+
+function Base.splice!(a::StringVector, i::Integer, ins=_default_splice)
+    v = a[i]
+    m = length(ins)
+    if m == 0
+        deleteat!(a, i)
+    elseif m == 1
+        a[i] = ins[1]
+    else
+        _growat!(a, i, m-1)
+        k = 1
+        for x in ins
+            a[i+k-1] = x
+            k += 1
+        end
+    end
+    return v
+end
+
+function Base.splice!(a::StringVector, r::UnitRange{<:Integer}, ins=_default_splice)
+    v = a[r]
+    m = length(ins)
+    if m == 0
+        deleteat!(a, r)
+        return v
+    end
+
+    n = length(a)
+    f = first(r)
+    l = last(r)
+    d = length(r)
+
+    if m < d
+        delta = d - m
+        _deleteat!(a, (f - 1 < n - l) ? f : (l - delta + 1), delta)
+    elseif m > d
+        _growat!(a, (f - 1 < n - l) ? f : (l + 1), m - d)
+    end
+
+    k = 1
+    for x in ins
+        a[f+k-1] = x
+        k += 1
+    end
+    return v
+end
+
+function _growbeg!(a::StringVector, n)
+    Base._growbeg!(a.offsets, n)
+    Base._growbeg!(a.lengths, n)
+    return
+end
+
+function Base.prepend!(a::StringVector, items::AbstractVector)
+    itemindices = eachindex(items)
+    n = length(itemindices)
+    _growbeg!(a, n)
+    if a === items
+        copyto!(a, 1, items, n+1, n)
+    else
+        copyto!(a, 1, items, first(itemindices), n)
+    end
+    return a
+end
+
+Base.prepend!(a::StringVector, iter) = _prepend!(a, Base.IteratorSize(iter), iter)
+Base.pushfirst!(a::StringVector, iter...) = prepend!(a, iter)
+
+function _prepend!(a, ::Union{Base.HasLength,Base.HasShape}, iter)
+    n = length(iter)
+    _growbeg!(a, n)
+    i = 0
+    for item in iter
+        @inbounds a[i += 1] = item
+    end
+    a
+end
+
+function _prepend!(a, ::Base.IteratorSize, iter)
+    n = 0
+    for item in iter
+        n += 1
+        pushfirst!(a, item)
+    end
+    reverse!(a, 1, n)
+    a
+end
+
+function Base.pop!(a::StringVector)
+    if isempty(a)
+        throw(ArgumentError("array must be non-empty"))
+    end
+    item = a[end]
+    deleteat!(a, length(a))
+    return item
+end
+
+function Base.pushfirst!(a::StringVector, item)
+    _growbeg!(a, 1)
+    a[1] = item
+    return a
+end
+
+function Base.popfirst!(a::StringVector)
+    if isempty(a)
+        throw(ArgumentError("array must be non-empty"))
+    end
+    item = a[1]
+    deleteat!(a, 1)
+    return item
 end
 
 end # module
