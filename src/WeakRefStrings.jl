@@ -311,13 +311,13 @@ function _setindex!(arr::StringArray, val::AbstractString, idx)
     val
 end
 
-function _setindex!(arr::StringArray, val::Missing, idx)
+function _setindex!(arr::StringArray{Union{T, Missing}, N}, val::Missing, idx) where {T, N}
     arr.lengths[idx] = 0
     arr.offsets[idx] = MISSING_OFFSET
     val
 end
 
-function _setindex!(arr::StringArray, val::Missing, idx...)
+function _setindex!(arr::StringArray{Union{T, Missing}, N}, val::Missing, idx...) where {T, N}
     arr.lengths[idx...] = 0
     arr.offsets[idx...] = MISSING_OFFSET
     val
@@ -343,7 +343,7 @@ function Base.push!(arr::StringVector, val::AbstractString)
     arr
 end
 
-function Base.push!(arr::StringVector, val::Missing)
+function Base.push!(arr::StringVector{Union{T, Missing}}, val::Missing) where {T}
     push!(arr.offsets, MISSING_OFFSET)
     push!(arr.lengths, 0)
     arr
@@ -364,7 +364,7 @@ function Base.insert!(arr::StringVector, idx::Integer, item::AbstractString)
     arr
 end
 
-function Base.insert!(arr::StringVector, idx::Integer, item::Missing)
+function Base.insert!(arr::StringVector{Union{T, Missing}}, idx::Integer, item::Missing) where {T}
     insert!(arr.offsets, idx, MISSING_OFFSET)
     insert!(arr.lengths, idx, 0)
     arr
@@ -413,6 +413,8 @@ function _deleteat!(a::StringVector, i, len)
     Base._deleteat!(a.lengths, i, len)
     return
 end
+
+const _default_splice = []
 
 function Base.splice!(a::StringVector, i::Integer, ins=_default_splice)
     v = a[i]
@@ -478,10 +480,10 @@ function Base.prepend!(a::StringVector, items::AbstractVector)
     return a
 end
 
-Base.prepend!(a::StringVector, iter) = _prepend!(a, IteratorSize(iter), iter)
+Base.prepend!(a::StringVector, iter) = _prepend!(a, Base.IteratorSize(iter), iter)
 Base.pushfirst!(a::StringVector, iter...) = prepend!(a, iter)
 
-function _prepend!(a, ::Union{HasLength,HasShape}, iter)
+function _prepend!(a, ::Union{Base.HasLength,Base.HasShape}, iter)
     n = length(iter)
     _growbeg!(a, n)
     i = 0
@@ -491,7 +493,7 @@ function _prepend!(a, ::Union{HasLength,HasShape}, iter)
     a
 end
 
-function _prepend!(a, ::IteratorSize, iter)
+function _prepend!(a, ::Base.IteratorSize, iter)
     n = 0
     for item in iter
         n += 1
