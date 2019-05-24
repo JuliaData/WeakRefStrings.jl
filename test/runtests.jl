@@ -77,8 +77,8 @@ end
                 sv1 = StringVector{String}(["foo", "bar"])
                 @test_throws MethodError setindex!(sv1, missing, 1)
                 sv1 = StringVector{Union{String, Missing}}(["foo", "bar"])
-                sv[1] = missing
-                @test sv[1] === missing
+                sv1[1] = missing
+                @test sv1[1] === missing
             end
 
             push!(sv, "🍕") == push!(copy(sa), "🍕")
