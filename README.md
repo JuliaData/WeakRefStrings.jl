@@ -1,24 +1,23 @@
 
 # WeakRefStrings
 
-*A string type for minimizing data-transfer costs in Julia*
+*Utilities for efficiently working with String data in Julia*
 
-| **PackageEvaluator**                                            | **Build Status**                                                                                |
-|:---------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
-| [![][pkg-0.6-img]][pkg-0.6-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
-
+[![][travis-img]][travis-url]
+[![][appveyor-img]][appveyor-url]
+[![][codecov-img]][codecov-url]
 
 ## Installation
 
-The package is registered in `METADATA.jl` and so can be installed with `Pkg.add`.
+The package is registered in the [General](https://github.com/JuliaRegistries/General/) registry.
 
 ```julia
-julia> Pkg.add("WeakRefStrings")
+pkg> add WeakRefStrings
 ```
 
 ## Project Status
 
-The package is tested against Julia `0.6` and nightly on Linux, OS X, and Windows.
+The package is tested against Julia `1.0` and nightly on Linux, OS X, and Windows.
 
 ## Contributing and Questions
 
@@ -36,11 +35,8 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 
 [issues-url]: https://github.com/JuliaData/WeakRefStrings.jl/issues
 
-[pkg-0.6-img]: http://pkg.julialang.org/badges/WeakRefStrings_0.6.svg
-[pkg-0.6-url]: http://pkg.julialang.org/?pkg=WeakRefStrings
-
 ## Usage
 
-Usage of `WeakRefString`s is discouraged for general users. Currently, a `WeakRefString` purposely _does not_ implement many Base Julia String interface methods due to many recent changes to Julia's builtin String interface, as well as the complexity to do so correctly. As such, `WeakRefString`s are used primarily in the data ecosystem as an IO optimization and nothing more. Upon indexing a `WeakRefStringArray`, a proper Julia `String` type is materialized for safe, correct string processing. In the future, it may be possible to implement safe operations on `WeakRefString` itself, but for now, they must be converted to a `String` for any real work.
+Usage of `WeakRefString`s and `StringArray` is discouraged for general users. `StringArray`s are used primarily in the data ecosystem for IO optimization, avoiding unnecessary string allocations, and efficient binary storage. Upon indexing a `StringArray`, a proper Julia `String` type is materialized for safe, correct string processing.
 
-Additional documentation is available at the REPL for `?WeakRefStringArray` and `?WeakRefString`.
+Additional documentation is available at the REPL for `?StringArray` and `?WeakRefString`.

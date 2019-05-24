@@ -1,4 +1,4 @@
-using WeakRefStrings, Test, Random
+using WeakRefStrings, Test
 
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
@@ -119,8 +119,8 @@ end
     end
 
     @testset "vcat" begin
-        sv1 = StringVector{String}(unsafe_wrap(Array, pointer(randstring(1024)), 1024), UInt64[1:10:1000;], ones(UInt32,100)*9);
-        sv2 = StringVector{String}(unsafe_wrap(Array, pointer(randstring(1024)), 1024), UInt64[1:10:1000;], ones(UInt32,100)*9);
+        sv1 = StringVector{WeakRefString{UInt8}}(["foo", "bar"])
+        sv2 = StringVector{String}(["baz", "qux"])
         sv3 = vcat(sv1, sv2)
         @test length(sv3) == length(sv1) + length(sv2)
     end
