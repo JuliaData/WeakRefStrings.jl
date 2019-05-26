@@ -1,4 +1,5 @@
 using WeakRefStrings, Test, Random
+using DataAPI: refarray, refvalue
 
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
@@ -225,4 +226,13 @@ end
         @test length(sv1) == 3
     end
 
+    @testset "DataAPI" begin
+        a = StringVector(["a", "b", "c"])
+        v = refarray(a)
+        @test all(v .== a)
+        @test eltype(v) == WeakRefString{UInt8}
+        for i in 1:3
+            @test refvalue(a, v[i]) == a[i]
+        end
+    end
 end
