@@ -193,12 +193,12 @@ const MISSING_OFFSET = typemax(UInt64)-1
 Base.size(a::StringArray) = size(a.offsets)
 Base.IndexStyle(::Type{<:StringVector}) = IndexLinear()
 
-function DataAPI.refarray(a::WeakRefStrings.StringArray{T}) where {T}
-    S = Union{WeakRefStrings.WeakRefString{UInt8}, typeintersect(T, Missing)}
-    convert(WeakRefStrings.StringArray{S}, a)
+function DataAPI.refarray(a::StringArray{T}) where {T}
+    S = Union{WeakRefString{UInt8}, typeintersect(T, Missing)}
+    convert(StringArray{S}, a)
 end
 
-function DataAPI.refvalue(a::WeakRefStrings.StringArray{T}, s) where {T}
+function DataAPI.refvalue(a::StringArray{T}, s) where {T}
     convert(T, s)
 end
 
