@@ -4,8 +4,10 @@ authors = ["quinnj <quinn.jacobd@gmail.com>"]
 version = "0.6.1"
 
 [deps]
+DataAPI = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 julia = "1"
+DataAPI = "1"

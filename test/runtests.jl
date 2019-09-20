@@ -232,7 +232,17 @@ end
         @test all(v .== a)
         @test eltype(v) == WeakRefString{UInt8}
         for i in 1:3
-            @test refvalue(a, v[i]) == a[i]
+            @test isequal(refvalue(a, v[i]), a[i])
+        end
+
+        b = StringVector(["a", "b", missing])
+        w = refarray(b)
+        @test w[1] == "a"
+        @test w[2] == "b"
+        @test ismissing(w[3])
+        @test eltype(w) == Union{WeakRefString{UInt8}, Missing}
+        for i in 1:3
+            @test isequal(refvalue(b, w[i]), b[i])
         end
     end
 end
