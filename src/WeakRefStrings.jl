@@ -198,7 +198,7 @@ function DataAPI.refarray(a::StringArray{T}) where {T}
     convert(StringArray{S}, a)
 end
 
-function DataAPI.refvalue(a::StringArray{T}, s::Union{AbstractString, Missing}) where {T}
+function DataAPI.refvalue(a::StringArray{T}, s::Union{WeakRefString{UInt8}, Missing}) where {T}
     convert(T, s)
 end
 
