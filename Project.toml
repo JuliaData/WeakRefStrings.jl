@@ -1,7 +1,7 @@
 name = "WeakRefStrings"
 uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
 authors = ["quinnj <quinn.jacobd@gmail.com>"]
-version = "0.6.1"
+version = "0.6.2"
 
 [deps]
 DataAPI = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
