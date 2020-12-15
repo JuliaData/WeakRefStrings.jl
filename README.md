@@ -1,19 +1,20 @@
 
 # WeakRefStrings
 
+[![CI](https://github.com/JuliaData/WeakRefStrings.jl/workflows/CI/badge.svg)](https://github.com/JuliaData/WeakRefStrings.jl/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/JuliaData/WeakRefStrings.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaData/WeakRefStrings.jl)
+[![deps](https://juliahub.com/docs/WeakRefStrings/deps.svg)](https://juliahub.com/ui/Packages/WeakRefStrings/muGbw?t=2)
+[![version](https://juliahub.com/docs/WeakRefStrings/version.svg)](https://juliahub.com/ui/Packages/WeakRefStrings/muGbw)
+[![pkgeval](https://juliahub.com/docs/WeakRefStrings/pkgeval.svg)](https://juliahub.com/ui/Packages/WeakRefStrings/muGbw)
+
 *A string type for minimizing data-transfer costs in Julia*
-
-| **PackageEvaluator**                                            | **Build Status**                                                                                |
-|:---------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
-| [![][pkg-0.6-img]][pkg-0.6-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
-
 
 ## Installation
 
-The package is registered in `METADATA.jl` and so can be installed with `Pkg.add`.
+The package is registered in the General registry and so can be installed with `Pkg.add`.
 
 ```julia
-julia> Pkg.add("WeakRefStrings")
+julia> using Pkg; Pkg.add("WeakRefStrings")
 ```
 
 ## Project Status
@@ -25,19 +26,10 @@ The package is tested against Julia `0.6` and nightly on Linux, OS X, and Window
 Contributions are very welcome, as are feature requests and suggestions. Please open an
 [issue][issues-url] if you encounter any problems or would just like to ask a question.
 
-[travis-img]: https://travis-ci.org/JuliaData/WeakRefStrings.jl.svg?branch=master
-[travis-url]: https://travis-ci.org/JuliaData/WeakRefStrings.jl
-
-[appveyor-img]: https://ci.appveyor.com/api/projects/status/h227adt6ovd1u3sx/branch/master?svg=true
-[appveyor-url]: https://ci.appveyor.com/project/quinnj/weakrefstrings-jl/branch/master
-
 [codecov-img]: https://codecov.io/gh/JuliaData/WeakRefStrings.jl/branch/master/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/JuliaData/WeakRefStrings.jl
 
 [issues-url]: https://github.com/JuliaData/WeakRefStrings.jl/issues
-
-[pkg-0.6-img]: http://pkg.julialang.org/badges/WeakRefStrings_0.6.svg
-[pkg-0.6-url]: http://pkg.julialang.org/?pkg=WeakRefStrings
 
 ## Usage
 
