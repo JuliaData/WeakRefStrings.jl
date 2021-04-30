@@ -188,10 +188,19 @@ end
     return n
 end
 
-function Base.string(a::PosLenString...)
+const BaseStrs = Union{Char, String, SubString{String}}
+Base.string(a::PosLenString) = a
+Base.string(a::PosLenString...) = _string(a...)
+Base.string(a::BaseStrs, b::PosLenString) = _string(a, b)
+Base.string(a::BaseStrs, b::BaseStrs, c::PosLenString) = _string(a, b, c)
+@inline function _string(a::Union{BaseStrs, PosLenString}...)
     n = 0
     for v in a
-        n += sizeof(v)
+        if v isa Char
+            n += ncodeunits(v)
+        else
+            n += sizeof(v)
+        end
     end
     out = Base._string_n(n)
     offs = 1
@@ -259,6 +268,24 @@ function Base.endswith(a::PosLenString, b::Union{String, SubString{String}, PosL
 end
 
 Base.match(r::Regex, s::PosLenString, i::Integer) = match(r, String(s), i)
+
+function Base.lpad(s::PosLenString, n::Integer, p::Union{AbstractChar, AbstractString, PosLenString}=' ')
+    n = Int(n)::Int
+    m = signed(n) - Int(length(s))::Int
+    m ≤ 0 && return s
+    l = length(p)
+    q, r = divrem(m, l)
+    r == 0 ? string(p^q, s) : string(p^q, first(p, r), s)
+end
+
+function Base.rpad(s::PosLenString, n::Integer, p::Union{AbstractChar, AbstractString, PosLenString}=' ')
+    n = Int(n)::Int
+    m = signed(n) - Int(length(s))::Int
+    m ≤ 0 && return s
+    l = length(p)
+    q, r = divrem(m, l)
+    r == 0 ? string(s, p^q) : string(s, p^q, first(p, r))
+end
 
 # the rest of these methods are copy/pasted from Base strings/string.jl file
 # for efficiency
