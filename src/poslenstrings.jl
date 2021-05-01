@@ -455,7 +455,7 @@ end
 
 # convenience constructor for testing
 function strs(x::Vector, e=nothing)
-    len = map(x -> sizeof(coalesce(x, "")), x)
+    len = sum(x -> sizeof(coalesce(x, "")), x)
     data = Vector{UInt8}(undef, len)
     poslens = Vector{PosLen}(undef, length(x))
     pos = 1
@@ -487,11 +487,40 @@ end
 
 Base.isassigned(x::PosLenStringVector, i::Int) = true
 
-Base.@propagate_inbounds function Base.getindex(x::PosLenStringVector, inds)
-    A = PosLenStringVector(x.data, x.poslens[inds], x.e)
+Base.@propagate_inbounds function Base.getindex(x::PosLenStringVector{T}, inds) where {T}
+    A = PosLenStringVector{T}(x.data, x.poslens[inds], x.e)
     return A
 end
 
-Base.@propagate_inbounds function Base.setindex!(x::PosLenStringVector, val::AbstractString, i::Int)
+Base.similar(x::PosLenStringVector{T}, len) where {T} = similar(x, T, len)
+function Base.similar(x::PosLenStringVector{T}, ::Type{S}, len) where {T, S}
+    @assert S == PosLenString || S == Union{Missing, PosLenString}
+    println("here")
+    poslens = Vector{PosLen}(undef, len)
+    return PosLenStringVector{S}(x.data, poslens, x.e)
+end
 
+Base.copyto!(dest::PosLenStringVector, src::AbstractVector) =
+    copyto!(dest, 1, src, 1, length(src))
+
+@noinline mismatchedbuffers() = throw(ArgumentError("dest data buffer must be same buffer as source PosLenStrings"))
+
+function Base.copyto!(dest::PosLenStringVector{T}, doffs::Union{Signed, Unsigned},
+    src::Union{AbstractVector{PosLenString}, AbstractVector{Union{Missing, PosLenString}}},
+    soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
+    (doffs > 0 && (doffs + n - 1) <= length(dest) &&
+    soffs > 0 && (soffs + n - 1) <= length(src)) || throw(BoundsError("copyto! on PosLenStringVector"))
+    println("here 2")
+    data = dest.data
+    poslens = dest.poslens
+    @inbounds for i = 1:n
+        s = src[soffs + i - 1]
+        if s === missing
+            poslens[doffs + i - 1] = MISSING_BIT
+        else
+            s.data === data || mismatchedbuffers()
+            poslens[doffs + i - 1] = s.poslen
+        end
+    end
+    return dest
 end

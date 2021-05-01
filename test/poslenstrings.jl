@@ -3,6 +3,9 @@ using Test, WeakRefStrings
 @testset "PosLenStrings" begin
 
 # PosLen
+poslen = PosLen(0, 0, false, false)
+@test convert(UInt64, poslen) == UInt64(0)
+
 poslen = PosLen(0, 0, true, false)
 @test WeakRefStrings.missingvalue(poslen)
 
@@ -70,6 +73,17 @@ for y in ("", "hey", "🍕", "\\\\hey\\\\hey")
     @test cmp(y, x) == 0
 end
 
+# PosLenStringVector
+x = WeakRefStrings.strs(["hey", "there", "sailor", "esc\"aped"], UInt8('\\'))
+@test x == ["hey", "there", "sailor", "esc\"aped"]
+@test x[1] == "hey"
 
+x = WeakRefStrings.strs(["hey", "there", "sailor", "esc\"aped", missing], UInt8('\\'))
+@test isequal(x, ["hey", "there", "sailor", "esc\"aped", missing])
+
+x = WeakRefStrings.strs(["hey", "there", "sailor", "esc\"aped"], UInt8('"'))
+@test x == ["hey", "there", "sailor", "escaped"]
+@test isassigned(x, 1)
+@test x[1:3] == ["hey", "there", "sailor"]
 
 end
