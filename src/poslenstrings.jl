@@ -487,21 +487,38 @@ end
 
 Base.isassigned(x::PosLenStringVector, i::Int) = true
 
-Base.@propagate_inbounds function Base.getindex(x::PosLenStringVector{T}, inds) where {T}
+Base.@propagate_inbounds function Base.getindex(x::PosLenStringVector{T}, inds::AbstractVector) where {T}
     A = PosLenStringVector{T}(x.data, x.poslens[inds], x.e)
     return A
 end
 
-Base.similar(x::PosLenStringVector{T}, len) where {T} = similar(x, T, len)
-function Base.similar(x::PosLenStringVector{T}, ::Type{S}, len) where {T, S}
+Base.@propagate_inbounds function Base.setindex!(x::PosLenStringVector, v::PosLenString, i::Int)
+    @boundscheck checkbounds(x, i)
+    @assert x.data === v.data
+    @inbounds x.poslens[i] = v.poslen
+    return v
+end
+
+Base.@propagate_inbounds function Base.setindex!(x::PosLenStringVector, v::Missing, i::Int)
+    @boundscheck checkbounds(x, i)
+    @inbounds x.poslens[i] = MISSING_BIT
+    return v
+end
+
+Base.similar(x::PosLenStringVector{T}) where {T} = similar(x, T, length(x))
+Base.similar(x::PosLenStringVector{T}, len::Base.DimOrInd) where {T} = similar(x, T, len)
+function Base.similar(x::PosLenStringVector{T}, ::Type{S}, len::Base.DimOrInd) where {T, S}
     @assert S == PosLenString || S == Union{Missing, PosLenString}
-    println("here")
     poslens = Vector{PosLen}(undef, len)
     return PosLenStringVector{S}(x.data, poslens, x.e)
 end
 
 Base.copyto!(dest::PosLenStringVector, src::AbstractVector) =
     copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::PosLenStringVector, doffs::Union{Signed, Unsigned}, src::AbstractVector) =
+    copyto!(dest, doffs, src, 1, length(src))
+Base.copyto!(dest::PosLenStringVector, doffs::Union{Signed, Unsigned}, src::AbstractVector, soffs::Union{Signed, Unsigned}) =
+    copyto!(dest, doffs, src, soffs, length(src) - soffs + 1)
 
 @noinline mismatchedbuffers() = throw(ArgumentError("dest data buffer must be same buffer as source PosLenStrings"))
 
@@ -510,7 +527,6 @@ function Base.copyto!(dest::PosLenStringVector{T}, doffs::Union{Signed, Unsigned
     soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(BoundsError("copyto! on PosLenStringVector"))
-    println("here 2")
     data = dest.data
     poslens = dest.poslens
     @inbounds for i = 1:n
