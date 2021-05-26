@@ -1,5 +1,34 @@
 using Test, WeakRefStrings
 
+# convenience constructor for testing
+function str(x::Union{Missing, String}, e=nothing)
+    data = Vector{UInt8}(x)
+    poslen = PosLen(1, sizeof(coalesce(x, "")), x === missing, e !== nothing && UInt8(e) in data)
+    return PosLenString(data, poslen, UInt8(something(e, 0x00)))
+end
+
+# convenience constructor for testing
+function strs(x::Vector, e=nothing)
+    len = sum(x -> sizeof(coalesce(x, "")), x)
+    data = Vector{UInt8}(undef, len)
+    poslens = Vector{PosLen}(undef, length(x))
+    pos = 1
+    anymissing = false
+    for (i, s) in enumerate(x)
+        if s !== missing
+            slen = sizeof(s)
+            bytes = codeunits(s)
+            copyto!(data, pos, bytes, 1, slen)
+            poslens[i] = PosLen(pos, slen, false, e !== nothing && e in bytes)
+            pos += slen
+        else
+            anymissing = true
+            poslens[i] = PosLen(pos, 0, true, false)
+        end
+    end
+    return PosLenStringVector{anymissing ? Union{Missing, PosLenString} : PosLenString}(data, poslens, something(e, 0x00))
+end
+
 @testset "PosLenStrings" begin
 
 # PosLen
@@ -20,7 +49,7 @@ poslen = PosLen(1, 3, false, false)
 
 # PosLenString
 for y in ("", "hey", "🍕", "\\\\hey\\\\hey")
-    x = WeakRefStrings.str(y, '\\')
+    x = str(y, '\\')
     y = unescape_string(y)
     @test codeunits(x) == codeunits(y)
     @test sizeof(x) == sizeof(y)
@@ -74,14 +103,14 @@ for y in ("", "hey", "🍕", "\\\\hey\\\\hey")
 end
 
 # PosLenStringVector
-x = WeakRefStrings.strs(["hey", "there", "sailor", "esc\"aped"], UInt8('\\'))
+x = strs(["hey", "there", "sailor", "esc\"aped"], UInt8('\\'))
 @test x == ["hey", "there", "sailor", "esc\"aped"]
 @test x[1] == "hey"
 
-x = WeakRefStrings.strs(["hey", "there", "sailor", "esc\"aped", missing], UInt8('\\'))
+x = strs(["hey", "there", "sailor", "esc\"aped", missing], UInt8('\\'))
 @test isequal(x, ["hey", "there", "sailor", "esc\"aped", missing])
 
-x = WeakRefStrings.strs(["hey", "there", "sailor", "esc\"aped"], UInt8('"'))
+x = strs(["hey", "there", "sailor", "esc\"aped"], UInt8('"'))
 @test x == ["hey", "there", "sailor", "escaped"]
 @test isassigned(x, 1)
 @test x[1:3] == ["hey", "there", "sailor"]

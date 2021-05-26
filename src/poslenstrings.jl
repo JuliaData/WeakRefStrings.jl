@@ -16,7 +16,7 @@ len(x) = UInt64(x) & 0x00000000000fffff
 
 @noinline lentoolong(len) = throw(ArgumentError("len = $len too long"))
 
-@inline function PosLen(pos, len, missing=false, escaped=false)
+@inline function PosLen(pos::Integer, len::Integer, missing=false, escaped=false)
     len > 1048575 && lentoolong(len)
     pos = UInt64(pos) << 20
     pos |= ifelse(missing, MISSING_BIT, UInt64(0))
@@ -70,13 +70,6 @@ struct PosLenString <: AbstractString
             return new(d, p, e)
         end
     end
-end
-
-# convenience constructor for testing
-function str(x::Union{Missing, String}, e=nothing)
-    data = Vector{UInt8}(x)
-    poslen = PosLen(1, sizeof(coalesce(x, "")), x === missing, e !== nothing && UInt8(e) in data)
-    return PosLenString(data, poslen, UInt8(something(e, 0x00)))
 end
 
 pos(x::PosLenString) = Int(pos(x.poslen))
@@ -482,28 +475,6 @@ struct PosLenStringVector{T} <: AbstractVector{T}
     data::Vector{UInt8}
     poslens::Vector{PosLen}
     e::UInt8
-end
-
-# convenience constructor for testing
-function strs(x::Vector, e=nothing)
-    len = sum(x -> sizeof(coalesce(x, "")), x)
-    data = Vector{UInt8}(undef, len)
-    poslens = Vector{PosLen}(undef, length(x))
-    pos = 1
-    anymissing = false
-    for (i, s) in enumerate(x)
-        if s !== missing
-            slen = sizeof(s)
-            bytes = codeunits(s)
-            copyto!(data, pos, bytes, 1, slen)
-            poslens[i] = PosLen(pos, slen, false, e !== nothing && e in bytes)
-            pos += slen
-        else
-            anymissing = true
-            poslens[i] = PosLen(pos, 0, true, false)
-        end
-    end
-    return PosLenStringVector{anymissing ? Union{Missing, PosLenString} : PosLenString}(data, poslens, something(e, 0x00))
 end
 
 Base.IndexStyle(::Type{PosLenStringVector}) = Base.IndexLinear()
