@@ -71,8 +71,8 @@ end
             end
 
             @testset "setindex with String" begin
-                sv[1]   = sa[1]
-                sv[end] = sa[end]
+                sv[1]   = String(sa[1])
+                sv[end] = String(sa[end])
                 @test sa == sv
             end
 
