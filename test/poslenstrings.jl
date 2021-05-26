@@ -42,8 +42,8 @@ poslen = PosLen(0, 0, false, true)
 @test WeakRefStrings.escapedvalue(poslen)
 
 poslen = PosLen(1, 3, false, false)
-@test WeakRefStrings.getpos(poslen) == 1
-@test WeakRefStrings.getlen(poslen) == 3
+@test WeakRefStrings.pos(poslen) == 1
+@test WeakRefStrings.len(poslen) == 3
 
 @test_throws ArgumentError PosLen(1, 1048576, false, false)
 
