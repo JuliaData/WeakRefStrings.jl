@@ -55,17 +55,20 @@ function unescape(buf, e)
 end
 
 # custom string type
+@noinline function escapedcodeunits(d, p, e)
+    maxpos = Int(pos(p) + len(p) - 1)
+    return [Int(x) for x = pos(p):maxpos if !((x == pos(p) && d[x] == e) || (x > pos(p) && d[x - 1] != e && d[x] == e))]
+end
+
 struct PosLenString <: AbstractString
     data::Vector{UInt8}
     poslen::PosLen
     e::UInt8
     inds::Vector{Int} # only for escaped strings
     
-    function PosLenString(d::Vector{UInt8}, p::PosLen, e::UInt8)
+    @inline function PosLenString(d::Vector{UInt8}, p::PosLen, e::UInt8)
         if escapedvalue(p)
-            maxpos = Int(pos(p) + len(p) - 1)
-            inds = [Int(x) for x = pos(p):maxpos if !((x == pos(p) && d[x] == e) || (x > pos(p) && d[x - 1] != e && d[x] == e))]
-            return new(d, p, e, inds)
+            return new(d, p, e, escapedcodeunits(d, p, e))
         else
             return new(d, p, e)
         end
@@ -92,7 +95,7 @@ Base.pointer(x::PosLenString, i::Integer=1) = pointer(x.data, pos(x) + i - 1)
 # Base.string(x::PosLenString) = x
 PosLenString(x::PosLenString) = x
 Base.String(x::PosLenString) =
-    !escaped(x) ? unsafe_string(pointer(x), len(x)) : String(codeunits(x))
+    !escaped(x) ? _unsafe_string(pointer(x), len(x)) : String(codeunits(x))
 Base.Vector{UInt8}(x::PosLenString) =
     !escaped(x) ? x.data[pos(x):(pos(x) + len(x) - 1)] : copy(codeunits(x))
 Base.Array{UInt8}(x::PosLenString) = Vector{UInt8}(x)
