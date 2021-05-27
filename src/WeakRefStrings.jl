@@ -3,6 +3,7 @@ module WeakRefStrings
 import DataAPI
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
+export PosLen, PosLenString, PosLenStringVector
 
 ########################################################################
 # WeakRefString
@@ -537,5 +538,7 @@ function Base.popfirst!(a::StringVector)
     deleteat!(a, 1)
     return item
 end
+
+include("poslenstrings.jl")
 
 end # module

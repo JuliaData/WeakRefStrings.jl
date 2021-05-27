@@ -1,6 +1,8 @@
 using WeakRefStrings, Test, Random
 using DataAPI: refarray, refvalue
 
+include("poslenstrings.jl")
+
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
 
@@ -69,8 +71,8 @@ end
             end
 
             @testset "setindex with String" begin
-                sv[1]   = sa[1]
-                sv[end] = sa[end]
+                sv[1]   = String(sa[1])
+                sv[end] = String(sa[end])
                 @test sa == sv
             end
 
