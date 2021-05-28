@@ -42,7 +42,7 @@ function Base.promote_type(::Type{T}, ::Type{S}) where {T <: InlineString, S <: 
 end
 
 Base.ncodeunits(::InlineString1) = 1
-Base.ncodeunits(x::InlineString) = Int64(Base.trunc_int(UInt8, x))
+Base.ncodeunits(x::InlineString) = Int(Base.trunc_int(UInt8, x))
 Base.codeunit(::InlineString) = UInt8
 
 Base.@propagate_inbounds function Base.codeunit(x::T, i::Int) where {T <: InlineString}
