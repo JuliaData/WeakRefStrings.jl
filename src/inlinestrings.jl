@@ -41,6 +41,17 @@ function Base.promote_type(::Type{T}, ::Type{S}) where {T <: InlineString, S <: 
     return InlineString255
 end
 
+Base.promote_type(::Type{T}, ::Type{String}) where {T <: InlineString} = String
+
+Base.widen(::Type{InlineString1}) = InlineString3
+Base.widen(::Type{InlineString3}) = InlineString7
+Base.widen(::Type{InlineString7}) = InlineString15
+Base.widen(::Type{InlineString15}) = InlineString31
+Base.widen(::Type{InlineString31}) = InlineString63
+Base.widen(::Type{InlineString63}) = InlineString127
+Base.widen(::Type{InlineString127}) = InlineString255
+Base.widen(::Type{InlineString255}) = String
+
 Base.ncodeunits(::InlineString1) = 1
 Base.ncodeunits(x::InlineString) = Int(Base.trunc_int(UInt8, x))
 Base.codeunit(::InlineString) = UInt8
@@ -733,11 +744,11 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
     else
         # no delimiter, so read until EOF
         while !Parsers.eof(source, pos, len)
+            b = peekbyte(source, pos)
             x, overflowed = addcodeunit(x, b)
             pos += 1
             vpos += 1
             incr!(source)
-            b = peekbyte(source, pos)
         end
         code |= EOF
     end
