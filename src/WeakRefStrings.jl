@@ -1,6 +1,6 @@
 module WeakRefStrings
 
-import DataAPI
+import DataAPI, Parsers
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
 export PosLen, PosLenString, PosLenStringVector
@@ -540,5 +540,6 @@ function Base.popfirst!(a::StringVector)
 end
 
 include("poslenstrings.jl")
+include("inlinestrings.jl")
 
 end # module
