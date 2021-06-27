@@ -31,6 +31,10 @@ y = InlineString7(x)
 @test promote_type(InlineString255, InlineString7) === InlineString255
 @test promote_type(InlineString63, InlineString15) === InlineString63
 
+# Ensure we haven't caused ambiguity with Base.
+# https://discourse.julialang.org/t/having-trouble-implementating-a-tables-jl-row-table-when-using-badukgoweiqitools-dataframe-tbl-no-longer-works/63622/1
+@test promote_type(Union{}, String) == String
+
 end # @testset
 
 @testset "InlineString operations" begin
