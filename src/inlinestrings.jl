@@ -23,7 +23,7 @@ const InlineStrings = Union{InlineString1,
                             InlineString127,
                             InlineString255}
 
-function Base.promote_type(::Type{T}, ::Type{S}) where {T <: InlineString, S <: InlineString}
+function Base.promote_rule(::Type{T}, ::Type{S}) where {T <: InlineString, S <: InlineString}
     T === InlineString1 && return S
     S === InlineString1 && return T
     T === InlineString3 && return S
@@ -41,7 +41,7 @@ function Base.promote_type(::Type{T}, ::Type{S}) where {T <: InlineString, S <: 
     return InlineString255
 end
 
-Base.promote_type(::Type{T}, ::Type{String}) where {T <: InlineString} = String
+Base.promote_rule(::Type{T}, ::Type{String}) where {T <: InlineString} = String
 
 Base.widen(::Type{InlineString1}) = InlineString3
 Base.widen(::Type{InlineString3}) = InlineString7
