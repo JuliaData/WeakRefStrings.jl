@@ -91,10 +91,11 @@ function addcodeunit(x::T, b::UInt8) where {T <: InlineString}
     if T === InlineString1
         return x, false
     end
-    len = ncodeunits(x)
-    (len + 1) == sizeof(T) && return x, true
-    x = Base.or_int(x, Base.shl_int(Base.zext_int(T, b), 8 * (sizeof(T) - len - 1)))
-    return Base.add_int(x, Base.zext_int(T, 0x01)), false
+    len = Base.trunc_int(UInt8, x)
+    sz = Base.trunc_int(UInt8, sizeof(T))
+    shf = Base.zext_int(Int16, max(0x01, sz - len - 0x01)) << 3
+    x = Base.or_int(x, Base.shl_int(Base.zext_int(T, b), shf))
+    return Base.add_int(x, Base.zext_int(T, 0x01)), (len + 0x01) >= sz
 end
 
 # from String
@@ -448,16 +449,16 @@ end
 # this is mostly copy-pasta from Parsers.jl main xparse function
 import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_FIELD, ESCAPED_STRING, NEWLINE, SUCCESS, peekbyte, incr!, checksentinel, checkdelim, checkcmtemptylines
 
-@inline function Parsers.xparse(::Type{T}, source::Union{AbstractVector{UInt8}, IO}, pos, len, options::Parsers.Options{ignorerepeated, ignoreemptylines, Q, debug, S, D, DF}) where {T <: InlineString, ignorerepeated, ignoreemptylines, Q, debug, S, D, DF}
+function Parsers.xparse(::Type{T}, source::Union{AbstractVector{UInt8}, IO}, pos, len, options::Parsers.Options, ::Type{S}=T)::Parsers.Result{S} where {T <: InlineString, S}
     startpos = vstartpos = vpos = pos
     sentstart = sentinelpos = 0
     code = SUCCESS
     sentinel = options.sentinel
     quoted = overflowed = false
     x = T()
-    if debug
-        println("parsing $T, pos=$pos, len=$len")
-    end
+    # if options.debug
+    #     println("parsing $T, pos=$pos, len=$len")
+    # end
     if Parsers.eof(source, pos, len)
         code = (sentinel === missing ? SENTINEL : OK) | EOF
         if T === InlineString1
@@ -468,14 +469,14 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
         @goto donedone
     end
     b = peekbyte(source, pos)
-    if debug
-        println("string 1) parsed: '$(escape_string(string(Char(b))))'")
-    end
+    # if options.debug
+    #     println("string 1) parsed: '$(escape_string(string(Char(b))))'")
+    # end
     # strip leading whitespace
     while b == options.wh1 || b == options.wh2
-        if debug
-            println("stripping leading whitespace")
-        end
+        # if options.debug
+        #     println("stripping leading whitespace")
+        # end
         x, overflowed = addcodeunit(x, b)
         pos += 1
         incr!(source)
@@ -484,17 +485,17 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
             @goto donedone
         end
         b = peekbyte(source, pos)
-        if debug
-            println("string 2) parsed: '$(escape_string(string(Char(b))))'")
-        end
+        # if options.debug
+        #     println("string 2) parsed: '$(escape_string(string(Char(b))))'")
+        # end
     end
     # check for start of quoted field
-    if Q
+    if options.quoted
         quoted = b == options.oq
         if quoted
-            if debug
-                println("detected open quote character")
-            end
+            # if options.debug
+            #     println("detected open quote character")
+            # end
             code = QUOTED
             x = T() # start our parsed value back over
             pos += 1
@@ -505,14 +506,14 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
                 @goto donedone
             end
             b = peekbyte(source, pos)
-            if debug
-                println("string 3) parsed: '$(escape_string(string(Char(b))))'")
-            end
+            # if options.debug
+            #     println("string 3) parsed: '$(escape_string(string(Char(b))))'")
+            # end
             # ignore whitespace within quoted field
             while b == options.wh1 || b == options.wh2
-                if debug
-                    println("stripping whitespace within quoted field")
-                end
+                # if options.debug
+                #     println("stripping whitespace within quoted field")
+                # end
                 x, overflowed = addcodeunit(x, b)
                 pos += 1
                 incr!(source)
@@ -521,27 +522,27 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
                     @goto donedone
                 end
                 b = peekbyte(source, pos)
-                if debug
-                    println("string 4) parsed: '$(escape_string(string(Char(b))))'")
-                end
+                # if options.debug
+                #     println("string 4) parsed: '$(escape_string(string(Char(b))))'")
+                # end
             end
         end
     end
     # check for sentinel values if applicable
     if sentinel !== nothing && sentinel !== missing
-        if debug
-            println("checking for sentinel value")
-        end
+        # if options.debug
+        #     println("checking for sentinel value")
+        # end
         sentstart = pos
         sentinelpos = checksentinel(source, pos, len, sentinel, debug)
     end
     vpos = pos
-    if Q
+    if options.quoted
         # for quoted fields, find the closing quote character
         if quoted
-            if debug
-                println("looking for close quote character")
-            end
+            # if options.debug
+            #     println("looking for close quote character")
+            # end
             same = options.cq == options.e
             while true
                 vpos = pos
@@ -580,19 +581,19 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
                 end
                 x, overflowed = addcodeunit(x, b)
                 b = peekbyte(source, pos)
-                if debug
-                    println("string 9) parsed: '$(escape_string(string(Char(b))))'")
-                end
+                # if options.debug
+                #     println("string 9) parsed: '$(escape_string(string(Char(b))))'")
+                # end
             end
             b = peekbyte(source, pos)
-            if debug
-                println("string 10) parsed: '$(escape_string(string(Char(b))))'")
-            end
+            # if options.debug
+            #     println("string 10) parsed: '$(escape_string(string(Char(b))))'")
+            # end
             # ignore whitespace after quoted field
             while b == options.wh1 || b == options.wh2
-                if debug
-                    println("stripping trailing whitespace after close quote character")
-                end
+                # if options.debug
+                #     println("stripping trailing whitespace after close quote character")
+                # end
                 pos += 1
                 incr!(source)
                 if Parsers.eof(source, pos, len)
@@ -600,9 +601,9 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
                     @goto donedone
                 end
                 b = peekbyte(source, pos)
-                if debug
-                    println("string 11) parsed: '$(escape_string(string(Char(b))))'")
-                end
+                # if options.debug
+                #     println("string 11) parsed: '$(escape_string(string(Char(b))))'")
+                # end
             end
         end
     end
@@ -610,11 +611,11 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
         delim = options.delim
         quo = Int(!quoted)
         # now we check for a delimiter; if we don't find it, keep parsing until we do
-        if debug
-            println("checking for delimiter: pos=$pos")
-        end
+        # if options.debug
+        #     println("checking for delimiter: pos=$pos")
+        # end
         while true
-            if !ignorerepeated
+            if !options.ignorerepeated
                 if delim isa UInt8
                     if b == delim
                         pos += 1
@@ -664,9 +665,9 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
                             @goto donedone
                         end
                         b = peekbyte(source, pos)
-                        if debug
-                            println("14) parsed: '$(escape_string(string(Char(b))))'")
-                        end
+                        # if options.debug
+                        #     println("14) parsed: '$(escape_string(string(Char(b))))'")
+                        # end
                     end
                     if matched
                         @goto donedone
@@ -703,9 +704,9 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
                             @goto donedone
                         end
                         b = peekbyte(source, pos)
-                        if debug
-                            println("14) parsed: '$(escape_string(string(Char(b))))'")
-                        end
+                        # if options.debug
+                        #     println("14) parsed: '$(escape_string(string(Char(b))))'")
+                        # end
                     end
                     if matched
                         @goto donedone
@@ -774,8 +775,9 @@ import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_F
     if overflowed
         code |= OVERFLOW
     end
-    if debug
-        println("finished parsing: $(codes(code))")
-    end
-    return x, code, Int64(vstartpos), Int64(vpos - vstartpos), Int64(pos - startpos)
+    # if options.debug
+    #     println("finished parsing: $(codes(code))")
+    # end
+    tlen = pos - startpos
+    return Parsers.Result{S}(code, tlen, x)
 end

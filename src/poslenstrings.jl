@@ -1,59 +1,3 @@
-primitive type PosLen 64 end
-PosLen(x::UInt64) = Core.bitcast(PosLen, x)
-UInt64(x::PosLen) = Core.bitcast(UInt64, x)
-
-Base.convert(::Type{PosLen}, x::UInt64) = PosLen(x)
-Base.convert(::Type{UInt64}, x::PosLen) = UInt64(x)
-
-const MISSING_BIT = 0x8000000000000000
-missingvalue(x) = (UInt64(x) & MISSING_BIT) == MISSING_BIT
-
-const ESCAPE_BIT = 0x4000000000000000
-escapedvalue(x) = (UInt64(x) & ESCAPE_BIT) == ESCAPE_BIT
-
-pos(x) = (UInt64(x) & 0x3ffffffffff00000) >> 20
-len(x) = UInt64(x) & 0x00000000000fffff
-
-@noinline lentoolong(len) = throw(ArgumentError("len = $len too long"))
-
-@inline function PosLen(pos::Integer, len::Integer, missing=false, escaped=false)
-    len > 1048575 && lentoolong(len)
-    pos = UInt64(pos) << 20
-    pos |= ifelse(missing, MISSING_BIT, UInt64(0))
-    pos |= ifelse(escaped, ESCAPE_BIT, UInt64(0))
-    return PosLen(pos | UInt64(len))
-end
-
-# convenience to allow converting PosLen directly to String and avoid PosLenString intermediary
-_unsafe_string(p, len) = ccall(:jl_pchar_to_string, Ref{String}, (Ptr{UInt8}, Int), p, len)
-
-@inline function Base.String(buf::AbstractVector{UInt8}, x::PosLen, e::UInt8)
-    escapedvalue(x) && return unescape(view(buf, pos(x):(pos(x) + len(x) - 1)), e)
-    return _unsafe_string(pointer(buf, pos(x)), len(x))
-end
-
-# if a cell value of a csv file has escape characters, we need to unescape it
-function unescape(buf, e)
-    n = length(buf)
-    out = Base.StringVector(n)
-    len = 1
-    i = 1
-    @inbounds begin
-        while i <= n
-            b = buf[i]
-            if b == e
-                i += 1
-                b = buf[i]
-            end
-            out[len] = b
-            len += 1
-            i += 1
-        end
-    end
-    resize!(out, len - 1)
-    return String(out)
-end
-
 # custom string type
 @noinline function escapedcodeunits(d, p, e)
     maxpos = Int(pos(p) + len(p) - 1)
@@ -75,8 +19,8 @@ struct PosLenString <: AbstractString
     end
 end
 
-pos(x::PosLenString) = Int(pos(x.poslen))
-len(x::PosLenString) = Int(len(x.poslen))
+pos(x::PosLenString) = Int(x.poslen.pos)
+len(x::PosLenString) = Int(x.poslen.len)
 escaped(x::PosLenString) = escapedvalue(x.poslen)
 
 Base.codeunits(x::PosLenString) =
@@ -87,13 +31,14 @@ Base.codeunit(::PosLenString) = UInt8
 Base.@propagate_inbounds function Base.codeunit(x::PosLenString, i::Int)
     @boundscheck checkbounds(Bool, x, i) || throw(BoundsError(x, i))
     poslen = x.poslen
-    return @inbounds escapedvalue(poslen) ? x.data[x.inds[i]] : x.data[pos(poslen) + i - 1]
+    return @inbounds escapedvalue(poslen) ? x.data[x.inds[i]] : x.data[poslen.pos + i - 1]
 end
 
 Base.pointer(x::PosLenString, i::Integer=1) = pointer(x.data, pos(x) + i - 1)
 
 # Base.string(x::PosLenString) = x
 PosLenString(x::PosLenString) = x
+_unsafe_string(p, len) = ccall(:jl_pchar_to_string, Ref{String}, (Ptr{UInt8}, Int), p, len)
 Base.String(x::PosLenString) =
     !escaped(x) ? _unsafe_string(pointer(x), len(x)) : String(codeunits(x))
 Base.Vector{UInt8}(x::PosLenString) =
