@@ -1,7 +1,7 @@
 # custom string type
 @noinline function escapedcodeunits(d, p, e)
-    maxpos = Int(pos(p) + len(p) - 1)
-    return [Int(x) for x = pos(p):maxpos if !((x == pos(p) && d[x] == e) || (x > pos(p) && d[x - 1] != e && d[x] == e))]
+    maxpos = Int(p.pos + p.len - 1)
+    return [Int(x) for x = p.pos:maxpos if !((x == p.pos && d[x] == e) || (x > p.pos && d[x - 1] != e && d[x] == e))]
 end
 
 struct PosLenString <: AbstractString
@@ -11,7 +11,7 @@ struct PosLenString <: AbstractString
     inds::Vector{Int} # only for escaped strings
     
     @inline function PosLenString(d::Vector{UInt8}, p::PosLen, e::UInt8)
-        if escapedvalue(p)
+        if p.escapedvalue
             return new(d, p, e, escapedcodeunits(d, p, e))
         else
             return new(d, p, e)
@@ -21,7 +21,7 @@ end
 
 pos(x::PosLenString) = Int(x.poslen.pos)
 len(x::PosLenString) = Int(x.poslen.len)
-escaped(x::PosLenString) = escapedvalue(x.poslen)
+escaped(x::PosLenString) = x.poslen.escapedvalue
 
 Base.codeunits(x::PosLenString) =
     escaped(x) ? view(x.data, x.inds) : view(x.data, pos(x):(pos(x) + len(x) - 1))
@@ -31,7 +31,7 @@ Base.codeunit(::PosLenString) = UInt8
 Base.@propagate_inbounds function Base.codeunit(x::PosLenString, i::Int)
     @boundscheck checkbounds(Bool, x, i) || throw(BoundsError(x, i))
     poslen = x.poslen
-    return @inbounds escapedvalue(poslen) ? x.data[x.inds[i]] : x.data[poslen.pos + i - 1]
+    return @inbounds poslen.escapedvalue ? x.data[x.inds[i]] : x.data[poslen.pos + i - 1]
 end
 
 Base.pointer(x::PosLenString, i::Integer=1) = pointer(x.data, pos(x) + i - 1)
@@ -431,7 +431,7 @@ Base.size(x::PosLenStringVector) = (length(x.poslens),)
 Base.@propagate_inbounds function Base.getindex(x::PosLenStringVector{T}, i::Int) where {T}
     @boundscheck checkbounds(x, i)
     @inbounds poslen = x.poslens[i]
-    T === Union{Missing, PosLenString} && missingvalue(poslen) && return missing
+    T === Union{Missing, PosLenString} && poslen.missingvalue && return missing
     return PosLenString(x.data, poslen, x.e)
 end
 

@@ -1,7 +1,7 @@
 module WeakRefStrings
 
 import DataAPI, Parsers
-import Parsers: PosLen, escapedvalue, missingvalue
+import Parsers: PosLen
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
 export PosLen, PosLenString, PosLenStringVector

@@ -123,6 +123,20 @@ function (::Type{T})(x::AbstractString) where {T <: InlineString}
     end
 end
 
+function (::Type{T})(buf::AbstractVector{UInt8}, pos, len) where {T <: InlineString}
+    if T === InlineString1
+        sizeof(x) == 1 || stringtoolong(T, sizeof(x))
+        return Base.bitcast(InlineString1, buf[pos])
+    else
+        length(buf) < len && buftoosmall()
+        len < sizeof(T) || stringtoolong(T, len)
+        y = GC.@preserve buf unsafe_load(convert(Ptr{T}, pointer(buf, pos)))
+        sz = 8 * (sizeof(T) - len)
+        return Base.or_int(Base.shl_int(Base.lshr_int(_bswap(y), sz), sz), Base.zext_int(T, UInt8(len)))
+    end
+end
+
+@noinline buftoosmall(n) = throw(ArgumentError("input buffer too short for requested length: $n"))
 @noinline stringtoolong(T, n) = throw(ArgumentError("string too large ($n) to convert to $T"))
 
 function InlineStringType(n::Integer)
@@ -445,339 +459,62 @@ end
     end
 end
 
-# parsers
-# this is mostly copy-pasta from Parsers.jl main xparse function
-import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_FIELD, ESCAPED_STRING, NEWLINE, SUCCESS, peekbyte, incr!, checksentinel, checkdelim, checkcmtemptylines
-
+# Parsers.xparse
 function Parsers.xparse(::Type{T}, source::Union{AbstractVector{UInt8}, IO}, pos, len, options::Parsers.Options, ::Type{S}=T)::Parsers.Result{S} where {T <: InlineString, S}
-    startpos = vstartpos = vpos = pos
-    sentstart = sentinelpos = 0
-    code = SUCCESS
-    sentinel = options.sentinel
-    quoted = overflowed = false
-    x = T()
-    # if options.debug
-    #     println("parsing $T, pos=$pos, len=$len")
-    # end
-    if Parsers.eof(source, pos, len)
-        code = (sentinel === missing ? SENTINEL : OK) | EOF
-        if T === InlineString1
-            # InlineString1 must be exactly 1 byte, so for empty string
-            # this is an "underflow" situation
-            code |= OVERFLOW
-        end
-        @goto donedone
-    end
-    b = peekbyte(source, pos)
-    # if options.debug
-    #     println("string 1) parsed: '$(escape_string(string(Char(b))))'")
-    # end
-    # strip leading whitespace
-    while b == options.wh1 || b == options.wh2
-        # if options.debug
-        #     println("stripping leading whitespace")
-        # end
-        x, overflowed = addcodeunit(x, b)
-        pos += 1
-        incr!(source)
-        if Parsers.eof(source, pos, len)
-            code |= EOF
-            @goto donedone
-        end
-        b = peekbyte(source, pos)
-        # if options.debug
-        #     println("string 2) parsed: '$(escape_string(string(Char(b))))'")
-        # end
-    end
-    # check for start of quoted field
-    if options.quoted
-        quoted = b == options.oq
-        if quoted
-            # if options.debug
-            #     println("detected open quote character")
-            # end
-            code = QUOTED
-            x = T() # start our parsed value back over
-            pos += 1
-            vstartpos = pos
-            incr!(source)
-            if Parsers.eof(source, pos, len)
-                code |= INVALID_QUOTED_FIELD
-                @goto donedone
-            end
-            b = peekbyte(source, pos)
-            # if options.debug
-            #     println("string 3) parsed: '$(escape_string(string(Char(b))))'")
-            # end
-            # ignore whitespace within quoted field
-            while b == options.wh1 || b == options.wh2
-                # if options.debug
-                #     println("stripping whitespace within quoted field")
-                # end
-                x, overflowed = addcodeunit(x, b)
-                pos += 1
-                incr!(source)
-                if Parsers.eof(source, pos, len)
-                    code |= INVALID_QUOTED_FIELD | EOF
-                    @goto donedone
-                end
-                b = peekbyte(source, pos)
-                # if options.debug
-                #     println("string 4) parsed: '$(escape_string(string(Char(b))))'")
-                # end
-            end
-        end
-    end
-    # check for sentinel values if applicable
-    if sentinel !== nothing && sentinel !== missing
-        # if options.debug
-        #     println("checking for sentinel value")
-        # end
-        sentstart = pos
-        sentinelpos = checksentinel(source, pos, len, sentinel, debug)
-    end
-    vpos = pos
-    if options.quoted
-        # for quoted fields, find the closing quote character
-        if quoted
-            # if options.debug
-            #     println("looking for close quote character")
-            # end
-            same = options.cq == options.e
-            while true
-                vpos = pos
-                pos += 1
-                incr!(source)
-                if same && b == options.e
-                    if Parsers.eof(source, pos, len)
-                        code |= EOF
-                        @goto donedone
-                    elseif peekbyte(source, pos) != options.cq
-                        break
-                    end
-                    code |= ESCAPED_STRING
-                    b = peekbyte(source, pos)
-                    pos += 1
-                    incr!(source)
-                elseif b == options.e
-                    if Parsers.eof(source, pos, len)
-                        code |= INVALID_QUOTED_FIELD | EOF
-                        @goto donedone
-                    end
-                    code |= ESCAPED_STRING
-                    b = peekbyte(source, pos)
-                    pos += 1
-                    incr!(source)
-                elseif b == options.cq
-                    if Parsers.eof(source, pos, len)
-                        code |= EOF
-                        @goto donedone
-                    end
-                    break
-                end
-                if Parsers.eof(source, pos, len)
-                    code |= INVALID_QUOTED_FIELD | EOF
-                    @goto donedone
-                end
-                x, overflowed = addcodeunit(x, b)
-                b = peekbyte(source, pos)
-                # if options.debug
-                #     println("string 9) parsed: '$(escape_string(string(Char(b))))'")
-                # end
-            end
-            b = peekbyte(source, pos)
-            # if options.debug
-            #     println("string 10) parsed: '$(escape_string(string(Char(b))))'")
-            # end
-            # ignore whitespace after quoted field
-            while b == options.wh1 || b == options.wh2
-                # if options.debug
-                #     println("stripping trailing whitespace after close quote character")
-                # end
-                pos += 1
-                incr!(source)
-                if Parsers.eof(source, pos, len)
-                    code |= EOF
-                    @goto donedone
-                end
-                b = peekbyte(source, pos)
-                # if options.debug
-                #     println("string 11) parsed: '$(escape_string(string(Char(b))))'")
-                # end
-            end
-        end
-    end
-    if options.delim !== nothing
-        delim = options.delim
-        quo = Int(!quoted)
-        # now we check for a delimiter; if we don't find it, keep parsing until we do
-        # if options.debug
-        #     println("checking for delimiter: pos=$pos")
-        # end
-        while true
-            if !options.ignorerepeated
-                if delim isa UInt8
-                    if b == delim
-                        pos += 1
-                        incr!(source)
-                        code |= DELIMITED
-                        @goto donedone
-                    end
-                else
-                    predelimpos = pos
-                    pos = checkdelim(source, pos, len, delim)
-                    if pos > predelimpos
-                        # found the delimiter we were looking for
-                        code |= DELIMITED
-                        @goto donedone
-                    end
-                end
-            else
-                if delim isa UInt8
-                    matched = false
-                    matchednewline = false
-                    while true
-                        if b == delim
-                            matched = true
-                            code |= DELIMITED
-                            pos += 1
-                            incr!(source)
-                        elseif !matchednewline && b == UInt8('\n')
-                            matchednewline = matched = true
-                            pos += 1
-                            incr!(source)
-                            pos = checkcmtemptylines(source, pos, len, options)
-                            code |= NEWLINE | ifelse(Parsers.eof(source, pos, len), EOF, SUCCESS)
-                        elseif !matchednewline && b == UInt8('\r')
-                            matchednewline = matched = true
-                            pos += 1
-                            incr!(source)
-                            if !Parsers.eof(source, pos, len) && peekbyte(source, pos) == UInt8('\n')
-                                pos += 1
-                                incr!(source)
-                            end
-                            pos = checkcmtemptylines(source, pos, len, options)
-                            code |= NEWLINE | ifelse(Parsers.eof(source, pos, len), EOF, SUCCESS)
-                        else
-                            break
-                        end
-                        if Parsers.eof(source, pos, len)
-                            @goto donedone
-                        end
-                        b = peekbyte(source, pos)
-                        # if options.debug
-                        #     println("14) parsed: '$(escape_string(string(Char(b))))'")
-                        # end
-                    end
-                    if matched
-                        @goto donedone
-                    end
-                else
-                    matched = false
-                    matchednewline = false
-                    while true
-                        predelimpos = pos
-                        pos = checkdelim(source, pos, len, delim)
-                        if pos > predelimpos
-                            matched = true
-                            code |= DELIMITED
-                        elseif !matchednewline && b == UInt8('\n')
-                            matchednewline = matched = true
-                            pos += 1
-                            incr!(source)
-                            pos = checkcmtemptylines(source, pos, len, options)
-                            code |= NEWLINE | ifelse(Parsers.eof(source, pos, len), EOF, SUCCESS)
-                        elseif !matchednewline && b == UInt8('\r')
-                            matchednewline = matched = true
-                            pos += 1
-                            incr!(source)
-                            if !Parsers.eof(source, pos, len) && peekbyte(source, pos) == UInt8('\n')
-                                pos += 1
-                                incr!(source)
-                            end
-                            pos = checkcmtemptylines(source, pos, len, options)
-                            code |= NEWLINE | ifelse(Parsers.eof(source, pos, len), EOF, SUCCESS)
-                        else
-                            break
-                        end
-                        if Parsers.eof(source, pos, len)
-                            @goto donedone
-                        end
-                        b = peekbyte(source, pos)
-                        # if options.debug
-                        #     println("14) parsed: '$(escape_string(string(Char(b))))'")
-                        # end
-                    end
-                    if matched
-                        @goto donedone
-                    end
-                end
-            end
-            # didn't find delimiter, but let's check for a newline character
-            if b == UInt8('\n')
-                pos += 1
-                incr!(source)
-                pos = checkcmtemptylines(source, pos, len, options)
-                code |= NEWLINE | ifelse(Parsers.eof(source, pos, len), EOF, SUCCESS)
-                @goto donedone
-            elseif b == UInt8('\r')
-                pos += 1
-                incr!(source)
-                if !Parsers.eof(source, pos, len) && peekbyte(source, pos) == UInt8('\n')
-                    pos += 1
-                    incr!(source)
-                end
-                pos = checkcmtemptylines(source, pos, len, options)
-                code |= NEWLINE | ifelse(Parsers.eof(source, pos, len), EOF, SUCCESS)
-                @goto donedone
-            end
-            # didn't find delimiter nor newline, so increment and check the next byte
-            x, overflowed = addcodeunit(x, b)
-            pos += 1
-            vpos += quo
-            incr!(source)
-            if Parsers.eof(source, pos, len)
-                code |= EOF
-                @goto donedone
-            end
-            b = peekbyte(source, pos)
-        end
+    res = Parsers.xparse(String, source, pos, len, options)
+    code = res.code
+    overflowed = false
+    poslen = res.val
+    if Parsers.invalid(code) || Parsers.sentinel(code)
+        x = T()
     else
-        # no delimiter, so read until EOF
-        while !Parsers.eof(source, pos, len)
-            b = peekbyte(source, pos)
-            x, overflowed = addcodeunit(x, b)
-            pos += 1
-            vpos += 1
-            incr!(source)
-        end
-        code |= EOF
-    end
-
-@label donedone
-    if sentinel !== nothing && sentinel !== missing && sentstart == vstartpos && sentinelpos == vpos
-        # if we matched a sentinel value that was as long or longer than our type value
-        code |= SENTINEL
-    elseif sentinel === missing && vstartpos == vpos
-        code |= SENTINEL
-    else
-        code |= OK
+        poslen = res.val
         if T === InlineString1
-            if (vpos - vstartpos) != 1
+            if poslen.len != 1
                 overflowed = true
+                x = T()
             else
-                Parsers.fastseek!(source, vstartpos)
-                x = InlineString1(peekbyte(source, vstartpos))
-                Parsers.fastseek!(source, pos - 1)
+                Parsers.fastseek!(source, poslen.pos)
+                x = InlineString1(Parsers.peekbyte(source, poslen.pos))
+                Parsers.fastseek!(source, pos + res.tlen - 1)
+            end
+        elseif Parsers.escapedstring(code) || !(source isa AbstractVector{UInt8})
+            if poslen.len > (sizeof(T) - 1)
+                overflowed = true
+                x = T()
+            else
+                # manually build up InlineString
+                i = poslen.pos
+                maxi = i + poslen.len
+                x = T()
+                Parsers.fastseek!(source, i - 1)
+                while i < maxi
+                    b = Parsers.peekbyte(source, i)
+                    if b == options.e
+                        i += 1
+                        Parsers.incr!(source)
+                        b = Parsers.peekbyte(source, i)
+                    end
+                    x, overflowed = addcodeunit(x, b)
+                    i += 1
+                    Parsers.incr!(source)
+                end
+                Parsers.fastseek!(source, maxi)
+            end
+        else
+            vlen = poslen.len
+            if vlen > (sizeof(T) - 1)
+                # @show T, vlen, sizeof(T)
+                overflowed = true
+                x = T()
+            else
+                # @show poslen.pos, vlen
+                x = T(source, poslen.pos, vlen)
             end
         end
     end
     if overflowed
-        code |= OVERFLOW
+        code |= Parsers.OVERFLOW
     end
-    # if options.debug
-    #     println("finished parsing: $(codes(code))")
-    # end
-    tlen = pos - startpos
-    return Parsers.Result{S}(code, tlen, x)
+    return Parsers.Result{S}(code, res.tlen, x)
 end

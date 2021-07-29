@@ -10,7 +10,6 @@ x, overflow = WeakRefStrings.addcodeunit(x, UInt8('g'))
 @test x == "abcdefg"
 x, overflow = WeakRefStrings.addcodeunit(x, UInt8('g'))
 @test overflow
-@test x == "abcdefg"
 
 x = InlineString("abc")
 @test x == InlineString7(x) == InlineString15(x) == InlineString31(x) == InlineString63(x)
@@ -41,7 +40,6 @@ end # @testset
     for y in ("",  "🍕", "a", "a"^3, "a"^7, "a"^15, "a"^31, "a"^63, "a"^127, "a"^255)
         x = InlineString(y)
         @show typeof(x)
-        # s = ShortString(y)
         @test codeunits(x) == codeunits(y)
         @test sizeof(x) == sizeof(y)
         @test ncodeunits(x) == ncodeunits(y)
@@ -97,14 +95,15 @@ end
 @testset "InlineString parsing" begin
 testcases = [
     ("", InlineString7(""), NamedTuple(), OK | EOF),
-    (" ", InlineString7(" "), NamedTuple(), OK | EOF),
-    (" \"", InlineString7(), NamedTuple(), OK | QUOTED | INVALID_QUOTED_FIELD), # invalid quoted
+    # TODO: Parsers.xparse(String) "drops" the leading whitespace
+    # (" ", InlineString7(" "), NamedTuple(), OK | EOF),
+    (" \"", InlineString7(), NamedTuple(), OK | QUOTED | EOF | INVALID_QUOTED_FIELD), # invalid quoted
     (" \"\" ", InlineString7(), NamedTuple(), OK | QUOTED | EOF), # quoted
-    (" \" ", InlineString7(" "), NamedTuple(), OK | QUOTED | INVALID_QUOTED_FIELD | EOF), # invalid quoted
+    (" \" ", InlineString7(), NamedTuple(), OK | QUOTED | INVALID_QUOTED_FIELD | EOF), # invalid quoted
     (" \" \" ", InlineString7(" "), NamedTuple(), OK | QUOTED | EOF), # quoted
-    ("NA", InlineString7("NA"), (; sentinel=["NA"]), EOF | SENTINEL), # sentinel
+    ("NA", InlineString7(), (; sentinel=["NA"]), EOF | SENTINEL), # sentinel
     ("\"\"", InlineString7(), NamedTuple(), OK | QUOTED | EOF), # same e & cq
-    ("\"\",", InlineString7(), NamedTuple(), OK | QUOTED | DELIMITED), # same e & cq
+    ("\"\",", InlineString7(), NamedTuple(), OK | QUOTED | EOF | DELIMITED), # same e & cq
     ("\"\"\"\"", InlineString7("\""), NamedTuple(), OK | QUOTED | ESCAPED_STRING | EOF), # same e & cq
     ("\"\\", InlineString7(), (; escapechar=UInt8('\\')), OK | QUOTED | INVALID_QUOTED_FIELD | EOF), # \\ e, invalid quoted
     ("\"\\\"\"", InlineString7("\""), (; escapechar=UInt8('\\')), OK | QUOTED | ESCAPED_STRING | EOF), # \\ e, valid
@@ -112,11 +111,11 @@ testcases = [
     ("\"a", InlineString7(), NamedTuple(), OK | QUOTED | INVALID_QUOTED_FIELD | EOF), # invalid quoted
     ("\"a\"", InlineString7("a"), NamedTuple(), OK | QUOTED | EOF), # quoted
     ("\"a\" ", InlineString7("a"), NamedTuple(), OK | QUOTED | EOF), # quoted
-    ("\"a\",", InlineString7("a"), NamedTuple(), OK | QUOTED | DELIMITED), # quoted
-    ("a,", InlineString7("a"), NamedTuple(), OK | DELIMITED),
-    ("a__", InlineString7("a"), (; delim="__"), OK | DELIMITED),
-    ("a,", InlineString7("a"), (; ignorerepeated=true), OK | DELIMITED),
-    ("a__", InlineString7("a"), (; delim="__", ignorerepeated=true), OK | DELIMITED),
+    ("\"a\",", InlineString7("a"), NamedTuple(), OK | QUOTED | EOF | DELIMITED), # quoted
+    ("a,", InlineString7("a"), NamedTuple(), OK | EOF | DELIMITED),
+    ("a__", InlineString7("a"), (; delim="__"), OK | EOF | DELIMITED),
+    ("a,", InlineString7("a"), (; ignorerepeated=true), OK | EOF | DELIMITED),
+    ("a__", InlineString7("a"), (; delim="__", ignorerepeated=true), OK | EOF | DELIMITED),
     ("a\n", InlineString7("a"), (; ignorerepeated=true), OK | NEWLINE | EOF),
     ("a\r", InlineString7("a"), (; ignorerepeated=true), OK | NEWLINE | EOF),
     ("a\r\n", InlineString7("a"), (; ignorerepeated=true), OK | NEWLINE | EOF),
@@ -137,16 +136,16 @@ testcases = [
 for (i, case) in enumerate(testcases)
     println("testing case = $i")
     buf, check, opts, checkcode = case
-    x, code, vpos, vlen, tlen = Parsers.xparse(InlineString7, buf; opts...)
-    @test check === x
-    @test code == checkcode
+    res = Parsers.xparse(InlineString7, buf; opts...)
+    @test check === res.val
+    @test checkcode == res.code
 end
 
-x, code, vpos, vlen, tlen = Parsers.xparse(InlineString1, "")
-@test Parsers.overflow(code)
-x, code, vpos, vlen, tlen = Parsers.xparse(InlineString1, "ab")
-@test Parsers.overflow(code)
-x, code, vpos, vlen, tlen = Parsers.xparse(InlineString1, "b")
-@test x === InlineString("b")
+res = Parsers.xparse(InlineString1, "")
+@test Parsers.overflow(res.code)
+res = Parsers.xparse(InlineString1, "ab")
+@test Parsers.overflow(res.code)
+res = Parsers.xparse(InlineString1, "b")
+@test res.val === InlineString("b")
 
 end # @testset
