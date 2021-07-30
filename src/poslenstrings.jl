@@ -1,65 +1,17 @@
-primitive type PosLen 64 end
-PosLen(x::UInt64) = Core.bitcast(PosLen, x)
-UInt64(x::PosLen) = Core.bitcast(UInt64, x)
-
-Base.convert(::Type{PosLen}, x::UInt64) = PosLen(x)
-Base.convert(::Type{UInt64}, x::PosLen) = UInt64(x)
-
-const MISSING_BIT = 0x8000000000000000
-missingvalue(x) = (UInt64(x) & MISSING_BIT) == MISSING_BIT
-
-const ESCAPE_BIT = 0x4000000000000000
-escapedvalue(x) = (UInt64(x) & ESCAPE_BIT) == ESCAPE_BIT
-
-pos(x) = (UInt64(x) & 0x3ffffffffff00000) >> 20
-len(x) = UInt64(x) & 0x00000000000fffff
-
-@noinline lentoolong(len) = throw(ArgumentError("len = $len too long"))
-
-@inline function PosLen(pos::Integer, len::Integer, missing=false, escaped=false)
-    len > 1048575 && lentoolong(len)
-    pos = UInt64(pos) << 20
-    pos |= ifelse(missing, MISSING_BIT, UInt64(0))
-    pos |= ifelse(escaped, ESCAPE_BIT, UInt64(0))
-    return PosLen(pos | UInt64(len))
-end
-
-# convenience to allow converting PosLen directly to String and avoid PosLenString intermediary
-_unsafe_string(p, len) = ccall(:jl_pchar_to_string, Ref{String}, (Ptr{UInt8}, Int), p, len)
-
-@inline function Base.String(buf::AbstractVector{UInt8}, x::PosLen, e::UInt8)
-    escapedvalue(x) && return unescape(view(buf, pos(x):(pos(x) + len(x) - 1)), e)
-    return _unsafe_string(pointer(buf, pos(x)), len(x))
-end
-
-# if a cell value of a csv file has escape characters, we need to unescape it
-function unescape(buf, e)
-    n = length(buf)
-    out = Base.StringVector(n)
-    len = 1
-    i = 1
-    @inbounds begin
-        while i <= n
-            b = buf[i]
-            if b == e
-                i += 1
-                b = buf[i]
-            end
-            out[len] = b
-            len += 1
-            i += 1
-        end
-    end
-    resize!(out, len - 1)
-    return String(out)
-end
-
-# custom string type
 @noinline function escapedcodeunits(d, p, e)
-    maxpos = Int(pos(p) + len(p) - 1)
-    return [Int(x) for x = pos(p):maxpos if !((x == pos(p) && d[x] == e) || (x > pos(p) && d[x - 1] != e && d[x] == e))]
+    maxpos = Int(p.pos + p.len - 1)
+    return [Int(x) for x = p.pos:maxpos if !((x == p.pos && d[x] == e) || (x > p.pos && d[x - 1] != e && d[x] == e))]
 end
 
+"""
+    PosLenString(buf::Vector{UInt8}, poslen::PosLen, e::UInt8)
+
+A custom string representation that takes a byte buffer (`buf`), `poslen`, and
+`e` escape character, and lazily allows treating a region of the `buf` as a string.
+Can be used most efficiently as part of a [`PosLenStringVector`](@ref) which only stores
+an array of `PosLen` (inline) along with a single `buf` and `e` and returns `PosLenString`
+when indexing individual elements.
+"""
 struct PosLenString <: AbstractString
     data::Vector{UInt8}
     poslen::PosLen
@@ -67,7 +19,7 @@ struct PosLenString <: AbstractString
     inds::Vector{Int} # only for escaped strings
     
     @inline function PosLenString(d::Vector{UInt8}, p::PosLen, e::UInt8)
-        if escapedvalue(p)
+        if p.escapedvalue
             return new(d, p, e, escapedcodeunits(d, p, e))
         else
             return new(d, p, e)
@@ -75,9 +27,9 @@ struct PosLenString <: AbstractString
     end
 end
 
-pos(x::PosLenString) = Int(pos(x.poslen))
-len(x::PosLenString) = Int(len(x.poslen))
-escaped(x::PosLenString) = escapedvalue(x.poslen)
+pos(x::PosLenString) = Int(x.poslen.pos)
+len(x::PosLenString) = Int(x.poslen.len)
+escaped(x::PosLenString) = x.poslen.escapedvalue
 
 Base.codeunits(x::PosLenString) =
     escaped(x) ? view(x.data, x.inds) : view(x.data, pos(x):(pos(x) + len(x) - 1))
@@ -87,13 +39,14 @@ Base.codeunit(::PosLenString) = UInt8
 Base.@propagate_inbounds function Base.codeunit(x::PosLenString, i::Int)
     @boundscheck checkbounds(Bool, x, i) || throw(BoundsError(x, i))
     poslen = x.poslen
-    return @inbounds escapedvalue(poslen) ? x.data[x.inds[i]] : x.data[pos(poslen) + i - 1]
+    return @inbounds poslen.escapedvalue ? x.data[x.inds[i]] : x.data[poslen.pos + i - 1]
 end
 
 Base.pointer(x::PosLenString, i::Integer=1) = pointer(x.data, pos(x) + i - 1)
 
 # Base.string(x::PosLenString) = x
 PosLenString(x::PosLenString) = x
+_unsafe_string(p, len) = ccall(:jl_pchar_to_string, Ref{String}, (Ptr{UInt8}, Int), p, len)
 Base.String(x::PosLenString) =
     !escaped(x) ? _unsafe_string(pointer(x), len(x)) : String(codeunits(x))
 Base.Vector{UInt8}(x::PosLenString) =
@@ -146,7 +99,7 @@ function Base.hash(s::PosLenString, h::UInt)
     if !escaped(s)
         ccall(Base.memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), pointer(s), len(s), h % UInt32) + h
     else
-        # TODO: this is really expensive, even for rare escaped PosLenString
+        # TODO: this is expensive, even for rare escaped PosLenString
         # this makes it about 4x slower than hash(::String)
         # alternative is to maybe take what's needed from MurmurHash3.jl to operate by codeunit
         x = copy(codeunits(s))
@@ -296,20 +249,26 @@ end
 
 Base.match(r::Regex, s::PosLenString, i::Integer) = match(r, String(s), i)
 
+@static if VERSION >= v"1.7"
+    const lpadlen = textwidth
+else
+    const lpadlen = length
+end
+
 function Base.lpad(s::PosLenString, n::Integer, p::Union{AbstractChar, AbstractString, PosLenString}=' ')
     n = Int(n)::Int
-    m = signed(n) - Int(length(s))::Int
+    m = signed(n) - Int(lpadlen(s))::Int
     m ≤ 0 && return s
-    l = length(p)
+    l = lpadlen(p)
     q, r = divrem(m, l)
     r == 0 ? string(p^q, s) : string(p^q, first(p, r), s)
 end
 
 function Base.rpad(s::PosLenString, n::Integer, p::Union{AbstractChar, AbstractString, PosLenString}=' ')
     n = Int(n)::Int
-    m = signed(n) - Int(length(s))::Int
+    m = signed(n) - Int(lpadlen(s))::Int
     m ≤ 0 && return s
-    l = length(p)
+    l = lpadlen(p)
     q, r = divrem(m, l)
     r == 0 ? string(s, p^q) : string(s, p^q, first(p, r))
 end
@@ -486,7 +445,7 @@ Base.size(x::PosLenStringVector) = (length(x.poslens),)
 Base.@propagate_inbounds function Base.getindex(x::PosLenStringVector{T}, i::Int) where {T}
     @boundscheck checkbounds(x, i)
     @inbounds poslen = x.poslens[i]
-    T === Union{Missing, PosLenString} && missingvalue(poslen) && return missing
+    T === Union{Missing, PosLenString} && poslen.missingvalue && return missing
     return PosLenString(x.data, poslen, x.e)
 end
 

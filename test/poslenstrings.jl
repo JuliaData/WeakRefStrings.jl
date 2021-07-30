@@ -33,17 +33,17 @@ end
 
 # PosLen
 poslen = PosLen(0, 0, false, false)
-@test convert(UInt64, poslen) == UInt64(0)
+@test Base.bitcast(UInt64, poslen) == UInt64(0)
 
 poslen = PosLen(0, 0, true, false)
-@test WeakRefStrings.missingvalue(poslen)
+@test poslen.missingvalue
 
 poslen = PosLen(0, 0, false, true)
-@test WeakRefStrings.escapedvalue(poslen)
+@test poslen.escapedvalue
 
 poslen = PosLen(1, 3, false, false)
-@test WeakRefStrings.pos(poslen) == 1
-@test WeakRefStrings.len(poslen) == 3
+@test poslen.pos == 1
+@test poslen.len == 3
 
 @test_throws ArgumentError PosLen(1, 1048576, false, false)
 
