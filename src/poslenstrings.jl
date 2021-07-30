@@ -249,20 +249,26 @@ end
 
 Base.match(r::Regex, s::PosLenString, i::Integer) = match(r, String(s), i)
 
+@static if VERSION >= v"1.7"
+    const lpadlen = textwidth
+else
+    const lpadlen = length
+end
+
 function Base.lpad(s::PosLenString, n::Integer, p::Union{AbstractChar, AbstractString, PosLenString}=' ')
     n = Int(n)::Int
-    m = signed(n) - Int(length(s))::Int
+    m = signed(n) - Int(lpadlen(s))::Int
     m ≤ 0 && return s
-    l = length(p)
+    l = lpadlen(p)
     q, r = divrem(m, l)
     r == 0 ? string(p^q, s) : string(p^q, first(p, r), s)
 end
 
 function Base.rpad(s::PosLenString, n::Integer, p::Union{AbstractChar, AbstractString, PosLenString}=' ')
     n = Int(n)::Int
-    m = signed(n) - Int(length(s))::Int
+    m = signed(n) - Int(lpadlen(s))::Int
     m ≤ 0 && return s
-    l = length(p)
+    l = lpadlen(p)
     q, r = divrem(m, l)
     r == 0 ? string(s, p^q) : string(s, p^q, first(p, r))
 end
