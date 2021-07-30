@@ -1,12 +1,36 @@
-import Base: ==
-
 export InlineString, InlineStringType
 
+"""
+    InlineString
+
+A set of custom string types of various fixed sizes. Each inline string
+is a custom primitive type and can benefit from being stack friendly by
+avoiding allocations/heap tracking in the GC. When used in an array,
+the elements are able to be stored inline since each one has a fixed
+size. Currently support inline strings from 1 byte up to 255 bytes.
+"""
 abstract type InlineString <: AbstractString end
 
 for sz in (1, 4, 8, 16, 32, 64, 128, 256)
     nm = Symbol(:InlineString, max(1, sz - 1))
     @eval begin
+        """
+            $($nm)
+
+        Custom fixed-size string with a fixed size of $($sz) bytes.
+        1 byte is used to store the length of the string. If an
+        inline string is shorter than $($sz - 1) bytes, the entire
+        string still occupies the full $($sz) bytes since they are,
+        by definition, fixed size. Otherwise, they can be treated
+        just like normal `String` values. Note that `sizeof(x)` will
+        return the # of _codeunits_ in an $($nm) like `String`, not
+        the total fixed size. For the fixed size, call `sizeof($($nm))`.
+        $($nm) can be constructed from an existing `String` (`$($nm)(x::String)`),
+        from a byte buffer with position and length (`$($nm)(buf, pos, len)`),
+        or built iteratively by starting with `x = $($nm)()` and calling
+        `WeakRefStrings.addcodeunit(x, b::UInt8)` which returns a new $($nm)
+        with the new codeunit `b` appended.
+        """
         primitive type $nm <: InlineString $(sz * 8) end
         export $nm
     end

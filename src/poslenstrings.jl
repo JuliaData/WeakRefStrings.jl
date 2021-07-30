@@ -1,9 +1,17 @@
-# custom string type
 @noinline function escapedcodeunits(d, p, e)
     maxpos = Int(p.pos + p.len - 1)
     return [Int(x) for x = p.pos:maxpos if !((x == p.pos && d[x] == e) || (x > p.pos && d[x - 1] != e && d[x] == e))]
 end
 
+"""
+    PosLenString(buf::Vector{UInt8}, poslen::PosLen, e::UInt8)
+
+A custom string representation that takes a byte buffer (`buf`), `poslen`, and
+`e` escape character, and lazily allows treating a region of the `buf` as a string.
+Can be used most efficiently as part of a [`PosLenStringVector`](@ref) which only stores
+an array of `PosLen` (inline) along with a single `buf` and `e` and returns `PosLenString`
+when indexing individual elements.
+"""
 struct PosLenString <: AbstractString
     data::Vector{UInt8}
     poslen::PosLen
@@ -91,7 +99,7 @@ function Base.hash(s::PosLenString, h::UInt)
     if !escaped(s)
         ccall(Base.memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), pointer(s), len(s), h % UInt32) + h
     else
-        # TODO: this is really expensive, even for rare escaped PosLenString
+        # TODO: this is expensive, even for rare escaped PosLenString
         # this makes it about 4x slower than hash(::String)
         # alternative is to maybe take what's needed from MurmurHash3.jl to operate by codeunit
         x = copy(codeunits(s))

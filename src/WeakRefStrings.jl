@@ -1,10 +1,11 @@
 module WeakRefStrings
 
-import DataAPI, Parsers
-import Parsers: PosLen
+using DataAPI, Parsers
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
 export PosLen, PosLenString, PosLenStringVector
+
+import Base: ==
 
 ########################################################################
 # WeakRefString
@@ -39,7 +40,6 @@ const NULLSTRING16 = WeakRefString(Ptr{UInt16}(0), 0)
 const NULLSTRING32 = WeakRefString(Ptr{UInt32}(0), 0)
 Base.zero(::Type{WeakRefString{T}}) where {T} = WeakRefString(Ptr{T}(0), 0)
 
-import Base: ==
 function ==(x::WeakRefString{T}, y::WeakRefString{T}) where {T}
     x.len == y.len && (x.ptr == y.ptr || ccall(:memcmp, Cint, (Ptr{T}, Ptr{T}, Csize_t),
                                            x.ptr, y.ptr, x.len) == 0)

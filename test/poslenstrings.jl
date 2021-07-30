@@ -33,7 +33,7 @@ end
 
 # PosLen
 poslen = PosLen(0, 0, false, false)
-@test convert(UInt64, poslen) == UInt64(0)
+@test Base.bitcast(UInt64, poslen) == UInt64(0)
 
 poslen = PosLen(0, 0, true, false)
 @test poslen.missingvalue
