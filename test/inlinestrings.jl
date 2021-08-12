@@ -148,3 +148,16 @@ res = Parsers.xparse(InlineString1, "b")
 @test res.val === InlineString("b")
 
 end # @testset
+
+@testset "InlineString Serialization symmetry" begin
+    for str in ("",  "🍕", "a", "a"^3, "a"^7, "a"^15, "a"^31, "a"^63, "a"^127, "a"^255)
+        buf = IOBuffer()
+        i_str = InlineString(str)
+        Serialization.serialize(buf, i_str)
+        seekstart(buf)
+        i_str_copy = Serialization.deserialize(buf)
+
+        @test typeof(i_str_copy) == typeof(i_str)
+        @test i_str_copy == i_str
+    end 
+end # @testset

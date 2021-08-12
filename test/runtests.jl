@@ -1,4 +1,4 @@
-using WeakRefStrings, Test, Random, Parsers
+using WeakRefStrings, Test, Random, Parsers, Serialization
 using DataAPI: refarray, refvalue
 
 include("poslenstrings.jl")

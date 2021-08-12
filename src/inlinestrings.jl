@@ -214,6 +214,18 @@ function Base.hash(x::T, h::UInt) where {T <: InlineString}
         ref, sizeof(x), h % UInt32) + h
 end
 
+function Serialization.serialize(s::AbstractSerializer, x::T) where {T<:InlineString}
+    Serialization.serialize_type(s, T)
+    unsafe_write(s.io, Ref{T}(x), sizeof(T))
+    return nothing
+end
+
+function Serialization.deserialize(s::AbstractSerializer, ::Type{T}) where {T<:InlineString}
+    ref = Ref{T}()
+    unsafe_read(s.io, ref, sizeof(T))
+    return ref[]
+end
+
 function Base.write(io::IO, x::T) where {T <: InlineString}
     ref = Ref{T}(_bswap(x))
     return GC.@preserve ref begin
