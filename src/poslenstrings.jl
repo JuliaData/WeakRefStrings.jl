@@ -18,11 +18,11 @@ struct PosLenString <: AbstractString
     e::UInt8
     inds::Vector{Int} # only for escaped strings
     
-    @inline function PosLenString(d::Vector{UInt8}, p::PosLen, e::UInt8)
+    @inline function PosLenString(d::AbstractVector{UInt8}, p::PosLen, e::UInt8)
         if p.escapedvalue
-            return new(d, p, e, escapedcodeunits(d, p, e))
+            return new(Vector{UInt8}(d), p, e, escapedcodeunits(d, p, e))
         else
-            return new(d, p, e)
+            return new(Vector{UInt8}(d), p, e)
         end
     end
 end
