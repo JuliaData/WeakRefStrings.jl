@@ -34,6 +34,12 @@ y = InlineString7(x)
 # https://discourse.julialang.org/t/having-trouble-implementating-a-tables-jl-row-table-when-using-badukgoweiqitools-dataframe-tbl-no-longer-works/63622/1
 @test promote_type(Union{}, String) == String
 
+# make sure we don't read past an end of a buffer
+buf = Vector{UInt8}("hey")
+x = InlineString7(buf, 1, 3)
+@test x == "hey"
+@test typeof(x) == InlineString7
+
 end # @testset
 
 @testset "InlineString operations" begin

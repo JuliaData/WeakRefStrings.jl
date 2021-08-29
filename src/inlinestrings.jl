@@ -149,14 +149,27 @@ end
 
 function (::Type{T})(buf::AbstractVector{UInt8}, pos, len) where {T <: InlineString}
     if T === InlineString1
-        sizeof(x) == 1 || stringtoolong(T, sizeof(x))
+        len == 1 || stringtoolong(T, len)
         return Base.bitcast(InlineString1, buf[pos])
     else
-        length(buf) < len && buftoosmall()
+        blen = length(buf)
+        blen < len && buftoosmall(len)
         len < sizeof(T) || stringtoolong(T, len)
-        y = GC.@preserve buf unsafe_load(convert(Ptr{T}, pointer(buf, pos)))
-        sz = 8 * (sizeof(T) - len)
-        return Base.or_int(Base.shl_int(Base.lshr_int(_bswap(y), sz), sz), Base.zext_int(T, UInt8(len)))
+        if (blen - pos + 1) < sizeof(T)
+            # if our buffer isn't long enough to hold a full T,
+            # then we can't do our unsafe_load trick below because we'd be
+            # unsafe_load-ing memory from beyond the end of buf
+            # we need to build the InlineString byte-by-byte instead
+            y = T()
+            for i = pos:(pos + len - 1)
+                @inbounds y, _ = addcodeunit(y, buf[i])
+            end
+            return y
+        else
+            y = GC.@preserve buf unsafe_load(convert(Ptr{T}, pointer(buf, pos)))
+            sz = 8 * (sizeof(T) - len)
+            return Base.or_int(Base.shl_int(Base.lshr_int(_bswap(y), sz), sz), Base.zext_int(T, UInt8(len)))
+        end
     end
 end
 
