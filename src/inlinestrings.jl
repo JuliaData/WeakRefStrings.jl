@@ -227,27 +227,27 @@ function Base.hash(x::T, h::UInt) where {T <: InlineString}
         ref, sizeof(x), h % UInt32) + h
 end
 
-function Serialization.serialize(s::AbstractSerializer, x::T) where {T<:InlineString}
-    Serialization.serialize_type(s, T)
-    unsafe_write(s.io, Ref{T}(x), sizeof(T))
-    return nothing
-end
-
-function Serialization.deserialize(s::AbstractSerializer, ::Type{T}) where {T<:InlineString}
-    ref = Ref{T}()
-    unsafe_read(s.io, ref, sizeof(T))
-    return ref[]
-end
-
 function Base.write(io::IO, x::T) where {T <: InlineString}
-    ref = Ref{T}(_bswap(x))
+    ref = Ref{T}(x)
     return GC.@preserve ref begin
         ptr = convert(Ptr{UInt8}, Base.unsafe_convert(Ptr{T}, ref))
-        Int(unsafe_write(io, ptr, reinterpret(UInt, sizeof(x))))::Int
+        Int(unsafe_write(io, ptr, reinterpret(UInt, sizeof(T))))::Int
     end
 end
 
-Base.print(io::IO, s::InlineString) = (write(io, s); nothing)
+function Base.read(s::IO, ::Type{T}) where {T <: InlineString}
+    return read!(s, Ref{T}())[]::T
+end
+
+function Base.print(io::IO, x::T) where {T <: InlineString}
+    x isa InlineString1 && return print(io, Char(Base.bitcast(UInt8, x)))
+    ref = Ref{T}(_bswap(x))
+    return GC.@preserve ref begin
+        ptr = convert(Ptr{UInt8}, Base.unsafe_convert(Ptr{T}, ref))
+        unsafe_write(io, ptr, sizeof(x))
+        return
+    end
+end
 
 function Base.isascii(x::T) where {T <: InlineString}
     if T === InlineString1
