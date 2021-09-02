@@ -1,4 +1,4 @@
-using Test, WeakRefStrings, Parsers
+using Test, WeakRefStrings, Parsers, Serialization
 import Parsers: SENTINEL, OK, EOF, OVERFLOW, QUOTED, DELIMITED, INVALID_QUOTED_FIELD, ESCAPED_STRING, NEWLINE, SUCCESS, peekbyte, incr!, checksentinel, checkdelim, checkcmtemptylines
 
 @testset "InlineString basics" begin
@@ -43,7 +43,7 @@ x = InlineString7(buf, 1, 3)
 end # @testset
 
 @testset "InlineString operations" begin
-    for y in ("",  "🍕", "a", "a"^3, "a"^7, "a"^15, "a"^31, "a"^63, "a"^127, "a"^255)
+    for y in ("", "🍕", "a", "a"^3, "a"^7, "a"^15, "a"^31, "a"^63, "a"^127, "a"^255)
         x = InlineString(y)
         @show typeof(x)
         @test codeunits(x) == codeunits(y)
@@ -95,6 +95,10 @@ end # @testset
         @test cmp(x, x) == 0
         @test cmp(x, y) == 0
         @test cmp(y, x) == 0
+        io = IOBuffer()
+        write(io, x)
+        seekstart(io)
+        @test read(io, typeof(x)) === x
     end
 end
 
