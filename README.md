@@ -42,7 +42,7 @@ able to be stored inline since each one has a fixed size. Currently support
 inline strings from 1 byte up to 255 bytes.
 
 The following types are supported: `String1`, `String3`, `String7`, `String15`,
-`String31`, `String64`, `String127`, `String255`.
+`String31`, `String63`, `String127`, `String255`.
 
 ### `PosLenString`
 
