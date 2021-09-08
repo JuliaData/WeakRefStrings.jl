@@ -12,7 +12,8 @@ size. Currently support inline strings from 1 byte up to 255 bytes.
 abstract type InlineString <: AbstractString end
 
 for sz in (1, 4, 8, 16, 32, 64, 128, 256)
-    nm = Symbol(:InlineString, max(1, sz - 1))
+    nm = Symbol(:String, max(1, sz - 1))
+    nma = Symbol(:InlineString, max(1, sz - 1))
     @eval begin
         """
             $($nm)
@@ -32,7 +33,9 @@ for sz in (1, 4, 8, 16, 32, 64, 128, 256)
         with the new codeunit `b` appended.
         """
         primitive type $nm <: InlineString $(sz * 8) end
+        const $nma = $nm
         export $nm
+        export $nma
     end
 end
 

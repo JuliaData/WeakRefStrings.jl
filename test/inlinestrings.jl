@@ -169,5 +169,16 @@ end # @testset
 
         @test typeof(i_str_copy) == typeof(i_str)
         @test i_str_copy == i_str
-    end 
+    end
 end # @testset
+
+@testset "alias tests" begin
+    @test String1 == InlineString1
+    @test String3 == InlineString3
+    @test String7 == InlineString7
+    @test String15 == InlineString15
+    @test String31 == InlineString31
+    @test String63 == InlineString63
+    @test String127 == InlineString127
+    @test String255 == InlineString255
+end
