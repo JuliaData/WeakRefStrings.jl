@@ -187,6 +187,7 @@ function InlineStringType(n::Integer)
            n < 128 ? InlineString127 : InlineString255
 end
 
+InlineString(x::InlineString) = x
 InlineString(x::AbstractString)::InlineStrings = (InlineStringType(ncodeunits(x)))(x)
 
 # between InlineStrings
