@@ -1,10 +1,11 @@
 name = "WeakRefStrings"
 uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
 authors = ["quinnj <quinn.jacobd@gmail.com>"]
-version = "1.3.0"
+version = "1.4.0"
 
 [deps]
 DataAPI = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
+InlineStrings = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
 Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 
 [extras]
@@ -14,6 +15,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 DataAPI = "1"
+InlineStrings = "1"
 Parsers = "2"
 julia = "1.3"
 
