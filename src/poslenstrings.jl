@@ -169,7 +169,7 @@ end
 end
 
 const BaseStrs = Union{Char, String, SubString{String}}
-Base.string(a::PosLenString) = a
+Base.string(a::PosLenString) = String(a)
 Base.string(a::PosLenString...) = _string(a...)
 Base.string(a::BaseStrs, b::PosLenString) = _string(a, b)
 Base.string(a::BaseStrs, b::BaseStrs, c::PosLenString) = _string(a, b, c)

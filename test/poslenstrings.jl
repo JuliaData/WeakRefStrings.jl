@@ -115,4 +115,8 @@ x = strs(["hey", "there", "sailor", "esc\"aped"], UInt8('"'))
 @test isassigned(x, 1)
 @test x[1:3] == ["hey", "there", "sailor"]
 
+# https://github.com/JuliaData/InlineStrings.jl/issues/2
+x = str("hey")
+@test typeof(string(x)) == String
+
 end
