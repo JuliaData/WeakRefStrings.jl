@@ -269,6 +269,10 @@ _isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)
     convert(T, WeakRefString(pointer(a.buffer) + offset, a.lengths[i...]))
 end
 
+function Base.isassigned(a::StringArray, i::Integer...)
+    a.offsets[i...] ≢ UNDEF_OFFSET
+end
+
 function Base.similar(a::StringArray, T::Type{<:STR}, dims::Tuple{Vararg{Int64, N}}) where N
     StringArray{T, N}(undef, dims)
 end
