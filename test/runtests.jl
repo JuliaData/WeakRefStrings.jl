@@ -228,6 +228,15 @@ end
         @test length(sv1) == 3
     end
 
+    @testset "isassigned" begin
+        sv = StringVector{Union{String,Missing}}(undef, 3)
+        sv[1] = "foo"
+        sv[2] = "bar"
+        @test isassigned(sv, 1)
+        @test isassigned(sv, 2)
+        @test !isassigned(sv, 3)
+    end
+
     @testset "DataAPI" begin
         a = StringVector(["a", "b", "c"])
         v = refarray(a)
