@@ -1,5 +1,6 @@
-using WeakRefStrings, Test, Random, Parsers, InlineStrings
+using WeakRefStrings, Test, Random, InlineStrings
 using DataAPI: refarray, refvalue
+using Parsers: PosLen
 
 include("poslenstrings.jl")
 
