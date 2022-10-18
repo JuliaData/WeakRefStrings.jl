@@ -1,6 +1,7 @@
 module WeakRefStrings
 
-using DataAPI, Parsers
+using DataAPI
+using Parsers: PosLen
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
 export PosLen, PosLenString, PosLenStringVector
