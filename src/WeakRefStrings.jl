@@ -58,9 +58,16 @@ function Base.cmp(a::WeakRefString{T}, b::WeakRefString{T}) where T
     return c < 0 ? -1 : c > 0 ? +1 : cmp(al,bl)
 end
 
-function Base.hash(s::WeakRefString{T}, h::UInt) where {T}
-    h += Base.memhash_seed
-    ccall(Base.memhash, UInt, (Ptr{T}, Csize_t, UInt32), s.ptr, s.len, h % UInt32) + h
+if isdefined(Base, :memhash) && isdefined(Base, :memhash_seed)
+    function Base.hash(s::WeakRefString{T}, h::UInt) where {T}
+        h += Base.memhash_seed
+        ccall(Base.memhash, UInt, (Ptr{T}, Csize_t, UInt32), s.ptr, s.len, h % UInt32) + h
+    end
+elseif isdefined(Base, :hash_bytes) && isdefined(Base, :HASH_SECRET)
+    Base.hash(s::WeakRefString{UInt8}, h::UInt) = Base.hash_bytes(s.ptr, s.len, UInt64(h), Base.HASH_SECRET) % UInt
+    Base.hash(s::WeakRefString, h::UInt) = hash(String(s), h)
+else
+    Base.hash(s::WeakRefString, h::UInt) = hash(String(s), h)
 end
 
 function Base.show(io::IO, x::WeakRefString{T}) where {T}

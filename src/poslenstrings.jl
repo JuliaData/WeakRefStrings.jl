@@ -94,16 +94,18 @@ function Base.cmp(a::PosLenString, b::PosLenString)
     return cmp(codeunits(a), codeunits(b))
 end
 
-function Base.hash(s::PosLenString, h::UInt)
-    h += Base.memhash_seed
-    if !escaped(s)
-        ccall(Base.memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), pointer(s), len(s), h % UInt32) + h
-    else
-        # TODO: this is expensive, even for rare escaped PosLenString
-        # this makes it about 4x slower than hash(::String)
-        # alternative is to maybe take what's needed from MurmurHash3.jl to operate by codeunit
-        x = copy(codeunits(s))
-        ccall(Base.memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), pointer(x), sizeof(x), h % UInt32) + h
+if isdefined(Base, :memhash) && isdefined(Base, :memhash_seed)
+    function Base.hash(s::PosLenString, h::UInt)
+        h += Base.memhash_seed
+        if !escaped(s)
+            ccall(Base.memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), pointer(s), len(s), h % UInt32) + h
+        else
+            # TODO: this is expensive, even for rare escaped PosLenString
+            # this makes it about 4x slower than hash(::String)
+            # alternative is to maybe take what's needed from MurmurHash3.jl to operate by codeunit
+            x = copy(codeunits(s))
+            ccall(Base.memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), pointer(x), sizeof(x), h % UInt32) + h
+        end
     end
 end
 
