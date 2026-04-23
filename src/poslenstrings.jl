@@ -94,7 +94,7 @@ function Base.cmp(a::PosLenString, b::PosLenString)
     return cmp(codeunits(a), codeunits(b))
 end
 
-if isdefined(Base, :memhash)
+if isdefined(Base, :memhash) && isdefined(Base, :memhash_seed)
     function Base.hash(s::PosLenString, h::UInt)
         h += Base.memhash_seed
         if !escaped(s)

@@ -15,6 +15,11 @@ include("poslenstrings.jl")
     @test str[1] === 'h'
     @test str[2] === 'e'
     @test str[3] === 'y'
+    @test hash(str) isa UInt
+    @test hash(str, UInt(0x1234)) isa UInt
+    if !isdefined(Base, :memhash_seed)
+        @test hash(str, UInt(0x1234)) == hash("hey", UInt(0x1234))
+    end
 
     io = IOBuffer()
     show(io, str)
@@ -32,6 +37,11 @@ end
     @test typeof(str) == WeakRefStrings.WeakRefString{UInt16}
     @test String(str) == "hey"
     @test str.len == 3
+    @test hash(str) isa UInt
+    @test hash(str, UInt(0x1234)) isa UInt
+    if !isdefined(Base, :memhash_seed)
+        @test hash(str, UInt(0x1234)) == hash("hey", UInt(0x1234))
+    end
 end
 
 @testset "WeakRefString{UInt32}" begin
@@ -42,6 +52,11 @@ end
     @test typeof(str) == WeakRefStrings.WeakRefString{UInt32}
     @test String(str) == "hey"
     @test str.len == 4
+    @test hash(str) isa UInt
+    @test hash(str, UInt(0x1234)) isa UInt
+    if !isdefined(Base, :memhash_seed)
+        @test hash(str, UInt(0x1234)) == hash("hey", UInt(0x1234))
+    end
 end
 
 @testset "StringVector" begin
