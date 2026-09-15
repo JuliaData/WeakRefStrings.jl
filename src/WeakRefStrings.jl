@@ -1,10 +1,8 @@
 module WeakRefStrings
 
 using DataAPI
-using Parsers: PosLen
 
 export WeakRefString, WeakRefStringArray, StringArray, StringVector
-export PosLen, PosLenString, PosLenStringVector
 
 import Base: ==
 
@@ -552,7 +550,6 @@ function Base.popfirst!(a::StringVector)
     return item
 end
 
-include("poslenstrings.jl")
 include("inlinestrings.jl")
 
 end # module
