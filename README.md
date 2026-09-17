@@ -35,22 +35,10 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 
 ### `InlineString`
 
-A set of custom string types of various fixed sizes. Each inline string is a
-custom primitive type and can benefit from being stack friendly by avoiding
-allocations/heap tracking in the GC. When used in an array, the elements are
-able to be stored inline since each one has a fixed size. Currently support
-inline strings from 1 byte up to 255 bytes.
-
-The following types are supported: `String1`, `String3`, `String7`, `String15`,
-`String31`, `String63`, `String127`, `String255`.
-
-### `PosLenString`
-
-A custom string representation that takes a byte buffer (`buf`), `poslen`, and
-`e` escape character, and lazily allows treating a region of the `buf` as a
-string. Can be used most efficiently as part of a `PosLenStringVector` which
-only stores an array of `PosLen` (inline) along with a single `buf` and `e` and
-returns `PosLenString` when indexing individual elements.
+The inline string types (`String1`, `String3`, `String7`, `String15`,
+`String31`, `String63`, `String127`, `String255`) now live in
+[InlineStrings.jl](https://github.com/JuliaStrings/InlineStrings.jl) and are
+re-exported from this package for backwards compatibility.
 
 ### `WeakRefString`
 

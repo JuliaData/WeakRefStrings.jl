@@ -1,8 +1,5 @@
 using WeakRefStrings, Test, Random, InlineStrings
 using DataAPI: refarray, refvalue
-using Parsers: PosLen
-
-include("poslenstrings.jl")
 
 @testset "WeakRefString{UInt8}" begin
     data = codeunits("hey there sailor")
