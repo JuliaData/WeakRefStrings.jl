@@ -150,9 +150,9 @@ const STR = Union{Missing, <:AbstractString}
 
 Efficient storage for N dimensional array of strings.
 
-`StringArray` stores underlying string data for all elements of the array
-in a single contiguous buffer. It maintains offset and length for each
-element.
+`StringArray` stores UTF-8 string data for all elements of the array in a
+single contiguous buffer. Strings with other encodings are converted to
+`String` before storage. It maintains offset and length for each element.
 
 `T` can be `String`, `WeakRefString`, `EscapedString`, `Union{Missing, String}`,
 `Union{Missing, WeakRefString}`, or `Union{Missing, EscapedString}`.
@@ -292,7 +292,7 @@ end
 
 Base.copy(a::StringArray{T, N}) where {T,N} = StringArray{T, N}(copy(a.buffer), copy(a.offsets), copy(a.lengths))
 
-@inline function Base.setindex!(arr::StringArray, val::WeakRefString, idx::Integer...)
+@inline function Base.setindex!(arr::StringArray, val::WeakRefString{UInt8}, idx::Integer...)
     p = pointer(arr.buffer)
     if val.ptr <= p + sizeof(arr.buffer)-1 && val.ptr >= p
         # this WeakRefString points to data entirely within arr's buffer
@@ -314,22 +314,28 @@ end
     _setindex!(arr, val, idx)
 end
 
+# Copy known contiguous UTF-8 storage directly; normalize other string types.
+_utf8string(val::Union{String,SubString{String},WeakRefString{UInt8}}) = val
+_utf8string(val::AbstractString) = String(val)
+
 function _setindex!(arr::StringArray, val::AbstractString, idx...)
+    str = _utf8string(val)
     buffer = arr.buffer
     l = length(arr.buffer)
-    resize!(buffer, l + sizeof(val))
-    unsafe_copyto!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
-    arr.lengths[idx...] = sizeof(val)
+    resize!(buffer, l + sizeof(str))
+    GC.@preserve buffer str unsafe_copyto!(pointer(buffer, l+1), pointer(str,1), sizeof(str))
+    arr.lengths[idx...] = sizeof(str)
     arr.offsets[idx...] = l
     val
 end
 
 function _setindex!(arr::StringArray, val::AbstractString, idx)
+    str = _utf8string(val)
     buffer = arr.buffer
     l = length(arr.buffer)
-    resize!(buffer, l + sizeof(val))
-    unsafe_copyto!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
-    arr.lengths[idx] = sizeof(val)
+    resize!(buffer, l + sizeof(str))
+    GC.@preserve buffer str unsafe_copyto!(pointer(buffer, l+1), pointer(str,1), sizeof(str))
+    arr.lengths[idx] = sizeof(str)
     arr.offsets[idx] = l
     val
 end

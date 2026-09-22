@@ -56,6 +56,27 @@ end
     end
 end
 
+@testset "StringArray string encodings" begin
+    for T in (UInt16, UInt32), text in ("hello 🏀", "", "é")
+        data = transcode(T, text)
+        GC.@preserve data begin
+            value = WeakRefString(data)
+            vector = StringArray(["old"])
+            matrix = StringArray(reshape(["old"], 1, 1))
+            @test setindex!(vector, value, 1) === value
+            @test setindex!(matrix, value, 1, 1) === value
+            @test vector[1] == text
+            @test matrix[1, 1] == text
+        end
+    end
+    if isdefined(Base, :LazyString)
+        value = Base.LazyString("hello ", '🏀')
+        vector = StringArray(["old"])
+        vector[1] = value
+        @test vector[1] == "hello 🏀"
+    end
+end
+
 @testset "StringVector" begin
     s = "Julia is a name without special letters such as æ, ø, and å. Such letters require more than a single byte when encoded in UTF8"
     @testset "split on $splits" for splits in (['.'], [',', '.', ' '])
