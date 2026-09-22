@@ -161,7 +161,8 @@ unescaped `String`.
 
 You can use `convert(StringArray{U}, ::StringArray{T})` to change the
 element type (e.g. to `WeakRefString` for efficiency) without copying
-the data.
+the data. Constructing a `StringArray` from another `StringArray` copies
+the storage instead.
 
 # Example construction
 
@@ -259,6 +260,7 @@ StringVector(::UndefInitializer, len::Int) = StringArray{String}(undef, len)
 StringVector{T}(buffer::Vector{UInt8}, len::Int) where {T} = StringVector{T}(buffer, fill(UNDEF_OFFSET, len), fill(zero(UInt32), len))
 
 (T::Type{<:StringArray})(arr::AbstractArray{<:STR}) = convert(T, arr)
+(T::Type{<:StringArray})(arr::StringArray) = copy(convert(T, arr))
 
 _isassigned(arr, i...) = isassigned(arr, i...)
 _isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)

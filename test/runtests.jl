@@ -57,6 +57,33 @@ end
 end
 
 @testset "StringVector" begin
+    @testset "constructors copy StringArray storage" begin
+        source = StringArray{Union{String,Missing}}(undef, 3)
+        source[1] = "original"
+        source[2] = missing
+        for constructor in (StringArray, StringVector, StringArray{Union{String,Missing}},
+                            StringArray{Union{WeakRefString{UInt8},Missing}})
+            result = constructor(source)
+            @test result !== source
+            @test result.buffer !== source.buffer
+            @test result.offsets !== source.offsets
+            @test result.lengths !== source.lengths
+            @test result[1] == "original"
+            @test ismissing(result[2])
+            @test !isassigned(result, 3)
+            result[1] = "changed"
+            @test source[1] == "original"
+        end
+        matrix = StringArray(reshape(["original"], 1, 1))
+        result = StringArray{String,2}(matrix)
+        result[1, 1] = "changed"
+        @test matrix[1, 1] == "original"
+        shared = convert(StringArray{WeakRefString{UInt8},2}, matrix)
+        @test shared.buffer === matrix.buffer
+        @test shared.offsets === matrix.offsets
+        @test shared.lengths === matrix.lengths
+    end
+
     s = "Julia is a name without special letters such as æ, ø, and å. Such letters require more than a single byte when encoded in UTF8"
     @testset "split on $splits" for splits in (['.'], [',', '.', ' '])
         sa     = split(s, splits)
