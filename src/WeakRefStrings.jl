@@ -154,10 +154,8 @@ Efficient storage for N dimensional array of strings.
 in a single contiguous buffer. It maintains offset and length for each
 element.
 
-`T` can be `String`, `WeakRefString`, `EscapedString`, `Union{Missing, String}`,
-`Union{Missing, WeakRefString}`, or `Union{Missing, EscapedString}`.
-`getindex` will return this type except `EscapedString` returns the
-unescaped `String`.
+`T` determines the type returned by scalar indexing. Common choices are
+`String`, `WeakRefString{UInt8}`, or either type combined with `Missing`.
 
 You can use `convert(StringArray{U}, ::StringArray{T})` to change the
 element type (e.g. to `WeakRefString` for efficiency) without copying
@@ -181,7 +179,7 @@ julia> sa = StringArray{Union{Missing, String}}(["x", "y"]) # with Missing
  "x"
  "y"
 
-julia> sa = StringArray{Union{Missing, String}}(2,2) # undef
+julia> sa = StringArray{Union{Missing, String}}(undef, 2, 2)
 2×2 WeakRefStrings.StringArray{Union{Missing, String},2}:
  #undef  #undef
  #undef  #undef
