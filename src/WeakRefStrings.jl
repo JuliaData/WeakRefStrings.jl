@@ -364,11 +364,10 @@ function Base.resize!(arr::StringVector, len)
 end
 
 function Base.push!(arr::StringVector, val::AbstractString)
-    l = length(arr.buffer)
-    resize!(arr.buffer, l + sizeof(val))
-    unsafe_copyto!(pointer(arr.buffer, l + 1), pointer(val,1), sizeof(val))
-    push!(arr.offsets, l)
-    push!(arr.lengths, sizeof(val))
+    str = _utf8string(val)
+    push!(arr.offsets, UNDEF_OFFSET)
+    push!(arr.lengths, 0)
+    arr[length(arr)] = str
     arr
 end
 
@@ -385,11 +384,10 @@ function Base.deleteat!(arr::StringVector, idx)
 end
 
 function Base.insert!(arr::StringVector, idx::Integer, item::AbstractString)
-    l = length(arr.buffer)
-    resize!(arr.buffer, l + sizeof(item))
-    unsafe_copyto!(pointer(arr.buffer, l + 1), pointer(item), sizeof(item))
-    insert!(arr.offsets, idx, l)
-    insert!(arr.lengths, idx, sizeof(item))
+    str = _utf8string(item)
+    insert!(arr.offsets, idx, UNDEF_OFFSET)
+    insert!(arr.lengths, idx, 0)
+    arr[idx] = str
     arr
 end
 

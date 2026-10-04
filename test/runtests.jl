@@ -67,6 +67,12 @@ end
             @test setindex!(matrix, value, 1, 1) === value
             @test vector[1] == text
             @test matrix[1, 1] == text
+            pushed = StringArray(["old"])
+            inserted = StringArray(["old"])
+            @test push!(pushed, value) === pushed
+            @test insert!(inserted, 1, value) === inserted
+            @test collect(pushed) == ["old", text]
+            @test collect(inserted) == [text, "old"]
         end
     end
     if isdefined(Base, :LazyString)
@@ -74,7 +80,17 @@ end
         vector = StringArray(["old"])
         vector[1] = value
         @test vector[1] == "hello 🏀"
+        @test push!(vector, value) === vector
+        @test insert!(vector, 1, value) === vector
+        @test collect(vector) == fill("hello 🏀", 3)
     end
+    aliases = StringArray{WeakRefString{UInt8}}(["first", "second"])
+    value = aliases[1]
+    initial_bytes = length(aliases.buffer)
+    @test push!(aliases, value) === aliases
+    @test insert!(aliases, 1, value) === aliases
+    @test String.(aliases) == ["first", "first", "second", "first"]
+    @test length(aliases.buffer) == initial_bytes
 end
 
 @testset "StringVector" begin
