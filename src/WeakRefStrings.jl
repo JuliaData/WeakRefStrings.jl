@@ -275,6 +275,11 @@ _isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)
     convert(T, WeakRefString(pointer(a.buffer) + offset, a.lengths[i...]))
 end
 
+# Gather byte-backed views to avoid a temporary String allocation for each element.
+function Base.getindex(a::StringArray{T}, indices::AbstractArray) where {T<:Union{String,Missing}}
+    GC.@preserve a convert(StringArray{T}, DataAPI.refarray(a)[indices])
+end
+
 function Base.isassigned(a::StringArray, i::Integer...)
     a.offsets[i...] ≢ UNDEF_OFFSET
 end
