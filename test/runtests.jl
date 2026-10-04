@@ -135,6 +135,38 @@ end
         @test length(a.buffer) == 16
     end
 
+    @testset "array indexing" begin
+        values = ["alpha", "é🏀", "", "omega"]
+        for T in (String, Union{String,Missing})
+            a = StringVector{T}(values)
+            for indices in ([4, 2, 1, 4], Bool[true, false, true, false],
+                            reshape([4, 1, 2, 4], 2, 2), Int[])
+                result = a[indices]
+                @test result isa StringArray{T}
+                @test size(result) == size(values[indices])
+                @test result == values[indices]
+            end
+            matrix = StringArray{T}(reshape(values, 2, 2))
+            cartesian = [CartesianIndex(2, 1), CartesianIndex(1, 2)]
+            @test matrix[cartesian] == reshape(values, 2, 2)[cartesian]
+            result = a[[1, 2]]
+            a[1] = "changed source"
+            @test result == values[1:2]
+            result[2] = "changed result"
+            @test a[2] == values[2]
+            @test_throws BoundsError a[[0]]
+            @test_throws BoundsError a[[5]]
+            @test_throws BoundsError a[Bool[true]]
+            unassigned = StringVector{T}(undef, 2)
+            unassigned[1] = "assigned"
+            @test_throws UndefRefError unassigned[[2]]
+            @test unassigned[[1]] == ["assigned"]
+            @test isempty(unassigned[Int[]])
+        end
+        nullable = StringVector{Union{String,Missing}}(["value", missing, ""])
+        @test isequal(nullable[[2, 3, 2, 1]], [missing, "", missing, "value"])
+    end
+
     @testset "test permute!" begin
         sv = StringVector(["TextParse", "TextParse", "JuliaDB", "TextParse", "TextParse", "TextParse", "TextParse", "JuliaDB", "JuliaDB"])
         permute!(sv, reverse!([1:length(sv);]))
