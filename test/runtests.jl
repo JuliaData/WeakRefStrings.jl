@@ -248,6 +248,31 @@ end
         @test isassigned(sv, 1)
         @test isassigned(sv, 2)
         @test !isassigned(sv, 3)
+
+        assignment_status(a, indices) = try
+            isassigned(a, indices...)
+        catch err
+            typeof(err)
+        end
+        for T in (String, WeakRefString{UInt8}, Union{String,Missing}, Union{WeakRefString{UInt8},Missing}),
+            dims in ((), (0,), (2,), (2,2))
+            a = StringArray{T}(undef, dims)
+            reference = Array{Any}(undef, dims)
+            if !isempty(a)
+                a[1] = "assigned"
+                reference[1] = "assigned"
+            end
+            if Missing <: T && length(a) > 1
+                a[end] = missing
+                reference[end] = missing
+            end
+            indices = ((), (0,), (1,), (2,), (3,), (-1,), (1,1), (2,2), (3,1), (1,3),
+                       (1,1,1), (3,0), (0,2), (1,2), (0,1), (2,1), (1,2,1), (1,1,0), (1,1,2),
+                       (Int32(1),), (UInt(1),), (typemax(UInt64),), (true,), (false,))
+            for index in indices
+                @test assignment_status(a, index) == assignment_status(reference, index)
+            end
+        end
     end
 
     @testset "DataAPI" begin
