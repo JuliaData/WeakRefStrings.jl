@@ -160,6 +160,37 @@ end
         @test sv2 == ["baz", "qux", "yep", "nope"]
     end
 
+    @testset "concatenation preserves missing and unassigned slots" begin
+        for T in (String, WeakRefString{UInt8}), prefix in ("", "prefix", "é🏀")
+            a = StringVector{Union{T,Missing}}([prefix, missing])
+            resize!(a, 3)
+            b = StringVector{Union{T,Missing}}(["", "suffix", missing])
+            resize!(b, 4)
+            for concatenate in (vcat, (a, b) -> append!(copy(a), b))
+                result = concatenate(a, b)
+                @test length(result) == 7
+                @test String(result[1]) == prefix
+                @test ismissing(result[2])
+                @test !isassigned(result, 3)
+                @test_throws UndefRefError result[3]
+                @test String(result[4]) == ""
+                @test String(result[5]) == "suffix"
+                @test ismissing(result[6])
+                @test !isassigned(result, 7)
+                @test_throws UndefRefError result[7]
+            end
+            @test ismissing(b[3])
+            @test !isassigned(b, 4)
+            self = copy(a)
+            @test append!(self, self) === self
+            @test length(self) == 6
+            @test String(self[4]) == prefix
+            @test ismissing(self[5])
+            @test !isassigned(self, 6)
+            @test_throws UndefRefError self[6]
+        end
+    end
+
     @testset "deleteat!" begin
         sv1 = StringVector{WeakRefString{UInt8}}(["foo", "bar"])
         @test deleteat!(copy(sv1), 1) == ["bar"]
