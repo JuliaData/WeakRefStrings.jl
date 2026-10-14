@@ -407,12 +407,15 @@ function Base.sort!(arr::StringArray{String})
     arr
 end
 
+# Missing and unassigned offsets are sentinels, not byte-buffer positions.
 function Base.vcat(a::StringVector{T}, b::StringVector{T}) where T
-    StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, b.offsets .+ length(a.buffer)), vcat(a.lengths, b.lengths))
+    offsets = ifelse.(b.offsets .< MISSING_OFFSET, b.offsets .+ length(a.buffer), b.offsets)
+    StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, offsets), vcat(a.lengths, b.lengths))
 end
 
 function Base.append!(a::StringVector{T}, b::StringVector) where T
-    append!(a.offsets, b.offsets .+ length(a.buffer))
+    offsets = ifelse.(b.offsets .< MISSING_OFFSET, b.offsets .+ length(a.buffer), b.offsets)
+    append!(a.offsets, offsets)
     append!(a.buffer, b.buffer)
     append!(a.lengths, b.lengths)
     a
