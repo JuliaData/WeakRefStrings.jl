@@ -250,8 +250,8 @@ function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) wh
     end
     s
 end
-Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = StringArray{T}(arr)
-Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = StringVector{S}(arr)
+Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = convert(StringArray{T}, arr)
+Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = convert(StringArray{S}, arr)
 StringVector{T}() where {T} = StringVector{T}(UInt8[], UInt64[], UInt32[])
 StringVector() = StringVector{String}()
 StringVector{T}(::UndefInitializer, len::Int) where {T} = StringArray{T}(undef, len)

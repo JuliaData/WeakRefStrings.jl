@@ -78,6 +78,8 @@ end
         result = StringArray{String,2}(matrix)
         result[1, 1] = "changed"
         @test matrix[1, 1] == "original"
+        @test convert(StringArray, matrix) === matrix
+        @test convert(StringVector, source) === source
         shared = convert(StringArray{WeakRefString{UInt8},2}, matrix)
         @test shared.buffer === matrix.buffer
         @test shared.offsets === matrix.offsets
