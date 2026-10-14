@@ -150,16 +150,17 @@ const STR = Union{Missing, <:AbstractString}
 
 Efficient storage for N dimensional array of strings.
 
-`StringArray` stores underlying string data for all elements of the array
-in a single contiguous buffer. It maintains offset and length for each
-element.
+`StringArray` stores UTF-8 string data for all elements of the array in a
+single contiguous buffer. Strings with other encodings are converted to
+`String` before storage. It maintains offset and length for each element.
 
 `T` determines the type returned by scalar indexing. Common choices are
 `String`, `WeakRefString{UInt8}`, or either type combined with `Missing`.
 
 You can use `convert(StringArray{U}, ::StringArray{T})` to change the
 element type (e.g. to `WeakRefString` for efficiency) without copying
-the data.
+the data. Constructing a `StringArray` from another `StringArray` copies
+the storage instead.
 
 # Example construction
 
@@ -247,8 +248,8 @@ function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) wh
     end
     s
 end
-Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = StringArray{T}(arr)
-Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = StringVector{S}(arr)
+Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = convert(StringArray{T}, arr)
+Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = convert(StringArray{S}, arr)
 StringVector{T}() where {T} = StringVector{T}(UInt8[], UInt64[], UInt32[])
 StringVector() = StringVector{String}()
 StringVector{T}(::UndefInitializer, len::Int) where {T} = StringArray{T}(undef, len)
@@ -257,6 +258,7 @@ StringVector(::UndefInitializer, len::Int) = StringArray{String}(undef, len)
 StringVector{T}(buffer::Vector{UInt8}, len::Int) where {T} = StringVector{T}(buffer, fill(UNDEF_OFFSET, len), fill(zero(UInt32), len))
 
 (T::Type{<:StringArray})(arr::AbstractArray{<:STR}) = convert(T, arr)
+(T::Type{<:StringArray})(arr::StringArray) = copy(convert(T, arr))
 
 _isassigned(arr, i...) = isassigned(arr, i...)
 _isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)
@@ -295,7 +297,7 @@ end
 
 Base.copy(a::StringArray{T, N}) where {T,N} = StringArray{T, N}(copy(a.buffer), copy(a.offsets), copy(a.lengths))
 
-@inline function Base.setindex!(arr::StringArray, val::WeakRefString, idx::Integer...)
+@inline function Base.setindex!(arr::StringArray, val::WeakRefString{UInt8}, idx::Integer...)
     p = pointer(arr.buffer)
     if val.ptr <= p + sizeof(arr.buffer)-1 && val.ptr >= p
         # this WeakRefString points to data entirely within arr's buffer
@@ -317,22 +319,28 @@ end
     _setindex!(arr, val, idx)
 end
 
+# Copy known contiguous UTF-8 storage directly; normalize other string types.
+_utf8string(val::Union{String,SubString{String},WeakRefString{UInt8}}) = val
+_utf8string(val::AbstractString) = String(val)
+
 function _setindex!(arr::StringArray, val::AbstractString, idx...)
+    str = _utf8string(val)
     buffer = arr.buffer
     l = length(arr.buffer)
-    resize!(buffer, l + sizeof(val))
-    unsafe_copyto!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
-    arr.lengths[idx...] = sizeof(val)
+    resize!(buffer, l + sizeof(str))
+    GC.@preserve buffer str unsafe_copyto!(pointer(buffer, l+1), pointer(str,1), sizeof(str))
+    arr.lengths[idx...] = sizeof(str)
     arr.offsets[idx...] = l
     val
 end
 
 function _setindex!(arr::StringArray, val::AbstractString, idx)
+    str = _utf8string(val)
     buffer = arr.buffer
     l = length(arr.buffer)
-    resize!(buffer, l + sizeof(val))
-    unsafe_copyto!(pointer(buffer, l+1), pointer(val,1), sizeof(val))
-    arr.lengths[idx] = sizeof(val)
+    resize!(buffer, l + sizeof(str))
+    GC.@preserve buffer str unsafe_copyto!(pointer(buffer, l+1), pointer(str,1), sizeof(str))
+    arr.lengths[idx] = sizeof(str)
     arr.offsets[idx] = l
     val
 end
@@ -361,11 +369,10 @@ function Base.resize!(arr::StringVector, len)
 end
 
 function Base.push!(arr::StringVector, val::AbstractString)
-    l = length(arr.buffer)
-    resize!(arr.buffer, l + sizeof(val))
-    unsafe_copyto!(pointer(arr.buffer, l + 1), pointer(val,1), sizeof(val))
-    push!(arr.offsets, l)
-    push!(arr.lengths, sizeof(val))
+    str = _utf8string(val)
+    push!(arr.offsets, UNDEF_OFFSET)
+    push!(arr.lengths, 0)
+    arr[length(arr)] = str
     arr
 end
 
@@ -382,11 +389,10 @@ function Base.deleteat!(arr::StringVector, idx)
 end
 
 function Base.insert!(arr::StringVector, idx::Integer, item::AbstractString)
-    l = length(arr.buffer)
-    resize!(arr.buffer, l + sizeof(item))
-    unsafe_copyto!(pointer(arr.buffer, l + 1), pointer(item), sizeof(item))
-    insert!(arr.offsets, idx, l)
-    insert!(arr.lengths, idx, sizeof(item))
+    str = _utf8string(item)
+    insert!(arr.offsets, idx, UNDEF_OFFSET)
+    insert!(arr.lengths, idx, 0)
+    arr[idx] = str
     arr
 end
 
@@ -410,12 +416,15 @@ function Base.sort!(arr::StringArray{String})
     arr
 end
 
+# Missing and unassigned offsets are sentinels, not byte-buffer positions.
 function Base.vcat(a::StringVector{T}, b::StringVector{T}) where T
-    StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, b.offsets .+ length(a.buffer)), vcat(a.lengths, b.lengths))
+    offsets = ifelse.(b.offsets .< MISSING_OFFSET, b.offsets .+ length(a.buffer), b.offsets)
+    StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, offsets), vcat(a.lengths, b.lengths))
 end
 
 function Base.append!(a::StringVector{T}, b::StringVector) where T
-    append!(a.offsets, b.offsets .+ length(a.buffer))
+    offsets = ifelse.(b.offsets .< MISSING_OFFSET, b.offsets .+ length(a.buffer), b.offsets)
+    append!(a.offsets, offsets)
     append!(a.buffer, b.buffer)
     append!(a.lengths, b.lengths)
     a
