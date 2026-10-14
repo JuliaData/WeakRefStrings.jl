@@ -161,7 +161,8 @@ unescaped `String`.
 
 You can use `convert(StringArray{U}, ::StringArray{T})` to change the
 element type (e.g. to `WeakRefString` for efficiency) without copying
-the data.
+the data. Constructing a `StringArray` from another `StringArray` copies
+the storage instead.
 
 # Example construction
 
@@ -249,8 +250,8 @@ function Base.convert(::Type{<:StringArray{T}}, arr::AbstractArray{<:STR, N}) wh
     end
     s
 end
-Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = StringArray{T}(arr)
-Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = StringVector{S}(arr)
+Base.convert(::Type{StringArray}, arr::AbstractArray{T}) where {T<:STR} = convert(StringArray{T}, arr)
+Base.convert(::Type{StringArray{T, N} where T}, arr::AbstractArray{S}) where {S<:STR, N} = convert(StringArray{S}, arr)
 StringVector{T}() where {T} = StringVector{T}(UInt8[], UInt64[], UInt32[])
 StringVector() = StringVector{String}()
 StringVector{T}(::UndefInitializer, len::Int) where {T} = StringArray{T}(undef, len)
@@ -259,6 +260,7 @@ StringVector(::UndefInitializer, len::Int) = StringArray{String}(undef, len)
 StringVector{T}(buffer::Vector{UInt8}, len::Int) where {T} = StringVector{T}(buffer, fill(UNDEF_OFFSET, len), fill(zero(UInt32), len))
 
 (T::Type{<:StringArray})(arr::AbstractArray{<:STR}) = convert(T, arr)
+(T::Type{<:StringArray})(arr::StringArray) = copy(convert(T, arr))
 
 _isassigned(arr, i...) = isassigned(arr, i...)
 _isassigned(arr, i::CartesianIndex) = isassigned(arr, i.I...)
@@ -411,12 +413,15 @@ function Base.sort!(arr::StringArray{String})
     arr
 end
 
+# Missing and unassigned offsets are sentinels, not byte-buffer positions.
 function Base.vcat(a::StringVector{T}, b::StringVector{T}) where T
-    StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, b.offsets .+ length(a.buffer)), vcat(a.lengths, b.lengths))
+    offsets = ifelse.(b.offsets .< MISSING_OFFSET, b.offsets .+ length(a.buffer), b.offsets)
+    StringVector{T}(vcat(a.buffer, b.buffer), vcat(a.offsets, offsets), vcat(a.lengths, b.lengths))
 end
 
 function Base.append!(a::StringVector{T}, b::StringVector) where T
-    append!(a.offsets, b.offsets .+ length(a.buffer))
+    offsets = ifelse.(b.offsets .< MISSING_OFFSET, b.offsets .+ length(a.buffer), b.offsets)
+    append!(a.offsets, offsets)
     append!(a.buffer, b.buffer)
     append!(a.lengths, b.lengths)
     a
