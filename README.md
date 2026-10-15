@@ -19,7 +19,8 @@ julia> using Pkg; Pkg.add("WeakRefStrings")
 
 ## Project Status
 
-The package is tested against Julia `1.6` and `nightly` on Linux, OS X, and Windows.
+CI tests Julia 1.3 (the minimum supported version), the latest release, and nightly
+on Linux, and the latest release on 32-bit Windows.
 
 ## Contributing and Questions
 
@@ -36,21 +37,17 @@ Contributions are very welcome, as are feature requests and suggestions. Please 
 ### `InlineString`
 
 The inline string types (`String1`, `String3`, `String7`, `String15`,
-`String31`, `String63`, `String127`, `String255`) now live in
+`String31`, `String63`, `String127`, `String255`) live in
 [InlineStrings.jl](https://github.com/JuliaStrings/InlineStrings.jl) and are
 re-exported from this package for backwards compatibility.
 
 ### `WeakRefString`
 
-Usage of `WeakRefString`s is discouraged for general users. Currently, a
-`WeakRefString` purposely _does not_ implement many Base Julia String interface
-methods due to many recent changes to Julia's builtin String interface, as well
-as the complexity to do so correctly. As such, `WeakRefString`s are used
-primarily in the data ecosystem as an IO optimization and nothing more. Upon
-indexing a `WeakRefStringArray`, a proper Julia `String` type is materialized
-for safe, correct string processing. In the future, it may be possible to
-implement safe operations on `WeakRefString` itself, but for now, they must be
-converted to a `String` for any real work.
+Usage of `WeakRefString`s is discouraged for general users. A `WeakRefString`
+points at bytes owned by another object and does not keep that object alive, so it
+becomes invalid once that object is freed. `WeakRefString`s are used primarily in
+the data ecosystem as an IO optimization; convert one to `String` for any real
+work. Indexing a `StringArray{String}` returns a `String`.
 
-Additional documentation is available at the REPL for `?WeakRefStringArray` and
+Additional documentation is available at the REPL for `?StringArray` and
 `?WeakRefString`.
