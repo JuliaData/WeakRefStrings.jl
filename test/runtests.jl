@@ -399,3 +399,7 @@ end
         end
     end
 end
+
+@testset "exported names are defined" begin
+    @test all(name -> isdefined(WeakRefStrings, name), names(WeakRefStrings))
+end
