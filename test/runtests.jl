@@ -56,7 +56,73 @@ end
     end
 end
 
+@testset "StringArray string encodings" begin
+    for T in (UInt16, UInt32), text in ("hello 🏀", "", "é")
+        data = transcode(T, text)
+        GC.@preserve data begin
+            value = WeakRefString(data)
+            vector = StringArray(["old"])
+            matrix = StringArray(reshape(["old"], 1, 1))
+            @test setindex!(vector, value, 1) === value
+            @test setindex!(matrix, value, 1, 1) === value
+            @test vector[1] == text
+            @test matrix[1, 1] == text
+            pushed = StringArray(["old"])
+            inserted = StringArray(["old"])
+            @test push!(pushed, value) === pushed
+            @test insert!(inserted, 1, value) === inserted
+            @test collect(pushed) == ["old", text]
+            @test collect(inserted) == [text, "old"]
+        end
+    end
+    if isdefined(Base, :LazyString)
+        value = Base.LazyString("hello ", '🏀')
+        vector = StringArray(["old"])
+        vector[1] = value
+        @test vector[1] == "hello 🏀"
+        @test push!(vector, value) === vector
+        @test insert!(vector, 1, value) === vector
+        @test collect(vector) == fill("hello 🏀", 3)
+    end
+    aliases = StringArray{WeakRefString{UInt8}}(["first", "second"])
+    value = aliases[1]
+    initial_bytes = length(aliases.buffer)
+    @test push!(aliases, value) === aliases
+    @test insert!(aliases, 1, value) === aliases
+    @test String.(aliases) == ["first", "first", "second", "first"]
+    @test length(aliases.buffer) == initial_bytes
+end
+
 @testset "StringVector" begin
+    @testset "constructors copy StringArray storage" begin
+        source = StringArray{Union{String,Missing}}(undef, 3)
+        source[1] = "original"
+        source[2] = missing
+        for constructor in (StringArray, StringVector, StringArray{Union{String,Missing}},
+                            StringArray{Union{WeakRefString{UInt8},Missing}})
+            result = constructor(source)
+            @test result !== source
+            @test result.buffer !== source.buffer
+            @test result.offsets !== source.offsets
+            @test result.lengths !== source.lengths
+            @test result[1] == "original"
+            @test ismissing(result[2])
+            @test !isassigned(result, 3)
+            result[1] = "changed"
+            @test source[1] == "original"
+        end
+        matrix = StringArray(reshape(["original"], 1, 1))
+        result = StringArray{String,2}(matrix)
+        result[1, 1] = "changed"
+        @test matrix[1, 1] == "original"
+        @test convert(StringArray, matrix) === matrix
+        @test convert(StringVector, source) === source
+        shared = convert(StringArray{WeakRefString{UInt8},2}, matrix)
+        @test shared.buffer === matrix.buffer
+        @test shared.offsets === matrix.offsets
+        @test shared.lengths === matrix.lengths
+    end
+
     s = "Julia is a name without special letters such as æ, ø, and å. Such letters require more than a single byte when encoded in UTF8"
     @testset "split on $splits" for splits in (['.'], [',', '.', ' '])
         sa     = split(s, splits)
@@ -135,6 +201,38 @@ end
         @test length(a.buffer) == 16
     end
 
+    @testset "array indexing" begin
+        values = ["alpha", "é🏀", "", "omega"]
+        for T in (String, Union{String,Missing})
+            a = StringVector{T}(values)
+            for indices in ([4, 2, 1, 4], Bool[true, false, true, false],
+                            reshape([4, 1, 2, 4], 2, 2), Int[])
+                result = a[indices]
+                @test result isa StringArray{T}
+                @test size(result) == size(values[indices])
+                @test result == values[indices]
+            end
+            matrix = StringArray{T}(reshape(values, 2, 2))
+            cartesian = [CartesianIndex(2, 1), CartesianIndex(1, 2)]
+            @test matrix[cartesian] == reshape(values, 2, 2)[cartesian]
+            result = a[[1, 2]]
+            a[1] = "changed source"
+            @test result == values[1:2]
+            result[2] = "changed result"
+            @test a[2] == values[2]
+            @test_throws BoundsError a[[0]]
+            @test_throws BoundsError a[[5]]
+            @test_throws BoundsError a[Bool[true]]
+            unassigned = StringVector{T}(undef, 2)
+            unassigned[1] = "assigned"
+            @test_throws UndefRefError unassigned[[2]]
+            @test unassigned[[1]] == ["assigned"]
+            @test isempty(unassigned[Int[]])
+        end
+        nullable = StringVector{Union{String,Missing}}(["value", missing, ""])
+        @test isequal(nullable[[2, 3, 2, 1]], [missing, "", missing, "value"])
+    end
+
     @testset "test permute!" begin
         sv = StringVector(["TextParse", "TextParse", "JuliaDB", "TextParse", "TextParse", "TextParse", "TextParse", "JuliaDB", "JuliaDB"])
         permute!(sv, reverse!([1:length(sv);]))
@@ -158,6 +256,37 @@ end
 
         append!(sv2, ["yep", "nope"])
         @test sv2 == ["baz", "qux", "yep", "nope"]
+    end
+
+    @testset "concatenation preserves missing and unassigned slots" begin
+        for T in (String, WeakRefString{UInt8}), prefix in ("", "prefix", "é🏀")
+            a = StringVector{Union{T,Missing}}([prefix, missing])
+            resize!(a, 3)
+            b = StringVector{Union{T,Missing}}(["", "suffix", missing])
+            resize!(b, 4)
+            for concatenate in (vcat, (a, b) -> append!(copy(a), b))
+                result = concatenate(a, b)
+                @test length(result) == 7
+                @test String(result[1]) == prefix
+                @test ismissing(result[2])
+                @test !isassigned(result, 3)
+                @test_throws UndefRefError result[3]
+                @test String(result[4]) == ""
+                @test String(result[5]) == "suffix"
+                @test ismissing(result[6])
+                @test !isassigned(result, 7)
+                @test_throws UndefRefError result[7]
+            end
+            @test ismissing(b[3])
+            @test !isassigned(b, 4)
+            self = copy(a)
+            @test append!(self, self) === self
+            @test length(self) == 6
+            @test String(self[4]) == prefix
+            @test ismissing(self[5])
+            @test !isassigned(self, 6)
+            @test_throws UndefRefError self[6]
+        end
     end
 
     @testset "deleteat!" begin
