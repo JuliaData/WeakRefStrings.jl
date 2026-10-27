@@ -281,7 +281,9 @@ function Base.getindex(a::StringArray{T}, indices::AbstractArray) where {T<:Unio
 end
 
 function Base.isassigned(a::StringArray, i::Integer...)
-    a.offsets[i...] ≢ UNDEF_OFFSET
+    isassigned(a.offsets, i...) || return false
+    # Read the linear slot validated by Array.isassigned.
+    a.offsets[Base._sub2ind(size(a.offsets), i...)] ≢ UNDEF_OFFSET
 end
 
 function Base.similar(a::StringArray, T::Type{<:STR}, dims::Tuple{Vararg{Int64, N}}) where N
