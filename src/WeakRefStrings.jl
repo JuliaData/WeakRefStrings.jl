@@ -2,7 +2,7 @@ module WeakRefStrings
 
 using DataAPI
 
-export WeakRefString, WeakRefStringArray, StringArray, StringVector
+export WeakRefString, StringArray, StringVector
 
 import Base: ==
 
@@ -166,22 +166,22 @@ the storage instead.
 
 ```
 julia> sa = StringArray(["x", "y"]) # from Array{String}
-2-element WeakRefStrings.StringArray{String,1}:
+2-element StringVector{String}:
  "x"
  "y"
 
 julia> sa = StringArray{WeakRefString}(["x", "y"])
-2-element WeakRefStrings.StringArray{WeakRefStrings.WeakRefString,1}:
+2-element StringVector{WeakRefString}:
  "x"
  "y"
 
 julia> sa = StringArray{Union{Missing, String}}(["x", "y"]) # with Missing
-2-element WeakRefStrings.StringArray{Union{Missing, String},1}:
+2-element StringVector{Union{Missing, String}}:
  "x"
  "y"
 
 julia> sa = StringArray{Union{Missing, String}}(undef, 2, 2)
-2×2 WeakRefStrings.StringArray{Union{Missing, String},2}:
+2×2 StringArray{Union{Missing, String}, 2}:
  #undef  #undef
  #undef  #undef
 ```
