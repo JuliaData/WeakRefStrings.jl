@@ -79,9 +79,10 @@ Base.textwidth(s::WeakRefString) = textwidth(string(s))
 
 chompnull(x::WeakRefString{T}) where {T} = unsafe_load(x.ptr, x.len) == T(0) ? x.len - 1 : x.len
 
-Base.string(x::WeakRefString) = x == NULLSTRING ? "" : unsafe_string(x.ptr, x.len)
-Base.string(x::WeakRefString{UInt16}) = x == NULLSTRING16 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
-Base.string(x::WeakRefString{UInt32}) = x == NULLSTRING32 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
+# `x.len == 0` avoids string `==`, whose inferred callees invalidate easily
+Base.string(x::WeakRefString) = x.len == 0 ? "" : unsafe_string(x.ptr, x.len)
+Base.string(x::WeakRefString{UInt16}) = x.len == 0 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
+Base.string(x::WeakRefString{UInt32}) = x.len == 0 ? "" : String(transcode(UInt8, unsafe_wrap(Array, x.ptr, chompnull(x))))
 
 Base.convert(::Type{WeakRefString{UInt8}}, x::String) = WeakRefString(pointer(x), sizeof(x))
 Base.convert(::Type{String}, x::WeakRefString) = convert(String, string(x))

@@ -56,6 +56,14 @@ end
     end
 end
 
+@testset "empty WeakRefString" begin
+    for (null, T) in ((WeakRefStrings.NULLSTRING, UInt8), (WeakRefStrings.NULLSTRING16, UInt16), (WeakRefStrings.NULLSTRING32, UInt32))
+        @test string(null) == ""
+        data = T[0x0068]
+        @test string(WeakRefStrings.WeakRefString(pointer(data), 0)) == ""
+    end
+end
+
 @testset "StringArray string encodings" begin
     for T in (UInt16, UInt32), text in ("hello 🏀", "", "é")
         data = transcode(T, text)
